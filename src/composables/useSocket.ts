@@ -1,5 +1,5 @@
 import { ref, onMounted, onUnmounted } from 'vue';
-import PartySocket from "partykit/client";
+import PartySocket from "partysocket";
 
 const PARTYKIT_HOST = import.meta.env.DEV ? "localhost:1999" : "tutifruti-phoenix.partykit.dev";
 
