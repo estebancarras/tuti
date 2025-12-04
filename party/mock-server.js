@@ -1,74 +1,88 @@
 import { WebSocketServer } from 'ws';
 import { randomUUID } from 'crypto';
+import { URL } from 'url';
 
 const wss = new WebSocketServer({ port: 1999 });
 
 console.log('🎉 Mock PartyKit Server running on ws://localhost:1999');
 
-// In-memory state
-let gameState = {
-    status: 'LOBBY',
-    players: [],
-    roomId: null
-};
+// Room State Map: roomId -> RoomState
+const rooms = new Map();
 
-// Map to track socket -> player mapping
-const socketToPlayerId = new Map();
+// Map to track socket -> { roomId, playerId }
+const socketMetadata = new Map();
 
-function broadcast(message) {
+function broadcastToRoom(roomId, message) {
     const data = JSON.stringify(message);
     wss.clients.forEach((client) => {
-        if (client.readyState === 1) { // WebSocket.OPEN
+        const metadata = socketMetadata.get(client);
+        if (client.readyState === 1 && metadata && metadata.roomId === roomId) {
             client.send(data);
         }
     });
 }
 
-wss.on('connection', (ws) => {
-    const connectionId = randomUUID();
-    console.log(`✅ Client connected: ${connectionId}`);
+function getOrCreateRoom(roomId) {
+    if (!rooms.has(roomId)) {
+        rooms.set(roomId, {
+            status: 'LOBBY',
+            players: [],
+            roomId: roomId
+        });
+        console.log(`🏠 Created new room: ${roomId}`);
+    }
+    return rooms.get(roomId);
+}
 
-    // Send initial welcome/system message
+wss.on('connection', (ws, req) => {
+    const connectionId = randomUUID();
+
+    // Parse roomId from URL query params (simulating PartyKit routing)
+    // URL format: ws://localhost:1999/?roomId=ABCD
+    const url = new URL(req.url, 'ws://localhost:1999');
+    const roomId = url.searchParams.get('roomId') || 'LOBBY';
+
+    console.log(`✅ Client connected: ${connectionId} to Room: ${roomId}`);
+
+    // Store metadata
+    socketMetadata.set(ws, { roomId, playerId: connectionId });
+
+    // Send initial welcome
     ws.send(JSON.stringify({
         type: "SYSTEM",
-        payload: "Connected to Mock Server"
+        payload: `Connected to Mock Server Room: ${roomId}`
     }));
 
-    // Send current state immediately upon connection
+    // Send current state of the room immediately
+    const roomState = getOrCreateRoom(roomId);
     ws.send(JSON.stringify({
         type: "UPDATE_STATE",
-        payload: gameState
+        payload: roomState
     }));
 
     ws.on('message', (rawMessage) => {
         try {
             const message = JSON.parse(rawMessage.toString());
-            console.log(`📨 Received from ${connectionId}:`, message);
+            console.log(`📨 Received from ${connectionId} in ${roomId}:`, message);
 
             if (message.type === 'JOIN') {
-                // If it's the first player, set the room ID from the payload (or generate one if not provided, but client should provide it)
-                if (gameState.players.length === 0) {
-                    gameState.roomId = message.payload.roomId || 'ABCD'; // Default fallback
-                }
+                const currentRoom = getOrCreateRoom(roomId);
 
                 const newPlayer = {
                     id: connectionId,
                     name: message.payload.name,
                     score: 0,
-                    isHost: gameState.players.length === 0 // First player is host
+                    isHost: currentRoom.players.length === 0 // First player in THIS room is host
                 };
 
-                // Check if player already exists (reconnection logic could go here, but for now simple add)
-                // We'll just push for now. In a real app we'd check ID.
-                gameState.players.push(newPlayer);
-                socketToPlayerId.set(ws, connectionId);
+                currentRoom.players.push(newPlayer);
 
-                console.log(`👤 Player joined: ${newPlayer.name} (Host: ${newPlayer.isHost})`);
+                console.log(`👤 Player joined ${roomId}: ${newPlayer.name} (Host: ${newPlayer.isHost})`);
 
-                // Broadcast new state
-                broadcast({
+                // Broadcast new state only to this room
+                broadcastToRoom(roomId, {
                     type: "UPDATE_STATE",
-                    payload: gameState
+                    payload: currentRoom
                 });
             }
 
@@ -78,25 +92,34 @@ wss.on('connection', (ws) => {
     });
 
     ws.on('close', () => {
-        console.log(`❌ Client disconnected: ${connectionId}`);
+        console.log(`❌ Client disconnected: ${connectionId} from ${roomId}`);
 
-        const playerId = socketToPlayerId.get(ws);
-        if (playerId) {
-            // Remove player from state
-            const wasHost = gameState.players.find(p => p.id === playerId)?.isHost;
-            gameState.players = gameState.players.filter(p => p.id !== playerId);
-            socketToPlayerId.delete(ws);
+        const metadata = socketMetadata.get(ws);
+        if (metadata) {
+            const currentRoom = rooms.get(metadata.roomId);
+            if (currentRoom) {
+                // Remove player
+                const wasHost = currentRoom.players.find(p => p.id === metadata.playerId)?.isHost;
+                currentRoom.players = currentRoom.players.filter(p => p.id !== metadata.playerId);
 
-            // Reassign host if needed
-            if (wasHost && gameState.players.length > 0) {
-                gameState.players[0].isHost = true;
+                // Reassign host if needed
+                if (wasHost && currentRoom.players.length > 0) {
+                    currentRoom.players[0].isHost = true;
+                }
+
+                // Cleanup empty room if needed (optional)
+                if (currentRoom.players.length === 0) {
+                    rooms.delete(metadata.roomId);
+                    console.log(`🗑️ Room ${metadata.roomId} deleted (empty)`);
+                } else {
+                    // Broadcast update
+                    broadcastToRoom(metadata.roomId, {
+                        type: "UPDATE_STATE",
+                        payload: currentRoom
+                    });
+                }
             }
-
-            // Broadcast update
-            broadcast({
-                type: "UPDATE_STATE",
-                payload: gameState
-            });
+            socketMetadata.delete(ws);
         }
     });
 });

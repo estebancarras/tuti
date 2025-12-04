@@ -1,42 +1,49 @@
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref } from 'vue';
 import PartySocket from "partysocket";
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || (import.meta.env.DEV ? "localhost:1999" : "tutifruti-phoenix.partykit.dev");
 
+// Global state (Singleton pattern) to ensure App.vue and useGame.ts share the connection
+const socket = ref<PartySocket | null>(null);
+const isConnected = ref(false);
+const lastMessage = ref<string>('');
+
 export function useSocket() {
-    const socket = ref<PartySocket | null>(null);
-    const isConnected = ref(false);
-    const lastMessage = ref<string>('');
+    const setRoomId = (roomId: string) => {
+        // 1. Close existing connection if any
+        if (socket.value) {
+            console.log('🔌 Switching rooms... Closing old connection.');
+            socket.value.close();
+            socket.value = null;
+            isConnected.value = false;
+        }
 
-    const connect = (roomId: string = 'lobby') => {
-        if (socket.value) return;
+        // 2. Create new connection
+        console.log(`🔌 Connecting to room: ${roomId} on host: ${PARTYKIT_HOST}`);
 
-        // In DEV mode, we use native WebSocket for the Mock Server
-        // In PROD mode, we use PartySocket
         if (import.meta.env.DEV) {
-            const ws = new WebSocket('ws://localhost:1999');
+            // Mock Server Connection (Native WebSocket)
+            // We pass roomId in query param for mock server to identify it (simulating PartyKit routing)
+            const ws = new WebSocket(`ws://${PARTYKIT_HOST}?roomId=${roomId}`);
 
             ws.addEventListener('open', () => {
                 isConnected.value = true;
-                console.log('Connected to Mock Server!');
+                console.log('✅ Connected to Mock Server!');
             });
 
             ws.addEventListener('close', () => {
                 isConnected.value = false;
-                console.log('Disconnected from Mock Server');
-                socket.value = null;
+                console.log('❌ Disconnected from Mock Server');
             });
 
             ws.addEventListener('message', (event) => {
                 lastMessage.value = event.data;
-                console.log('Received:', event.data);
+                // console.log('Received:', event.data);
             });
 
-            // We cast to any to make it compatible with the ref type, 
-            // though in reality it's a native WebSocket in dev
-            socket.value = ws as any;
+            socket.value = ws as any; // Cast for compatibility
         } else {
-            // Production logic using PartySocket
+            // Production PartyKit Connection
             socket.value = new PartySocket({
                 host: PARTYKIT_HOST,
                 room: roomId,
@@ -44,34 +51,24 @@ export function useSocket() {
 
             socket.value.addEventListener('open', () => {
                 isConnected.value = true;
-                console.log('Connected to PartyKit Cloud!');
+                console.log('✅ Connected to PartyKit Cloud!');
             });
 
             socket.value.addEventListener('close', () => {
                 isConnected.value = false;
-                console.log('Disconnected from PartyKit Cloud');
+                console.log('❌ Disconnected from PartyKit Cloud');
             });
 
             socket.value.addEventListener('message', (event: MessageEvent) => {
                 lastMessage.value = event.data as string;
-                console.log('Received:', event.data);
             });
         }
     };
 
-    onMounted(() => {
-        connect();
-    });
-
-    onUnmounted(() => {
-        if (socket.value) {
-            socket.value.close();
-        }
-    });
-
     return {
         socket,
         isConnected,
-        lastMessage
+        lastMessage,
+        setRoomId
     };
 }

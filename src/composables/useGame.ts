@@ -10,7 +10,7 @@ const gameState = ref<RoomState>({
 });
 
 export function useGame() {
-    const { socket, lastMessage } = useSocket();
+    const { socket, lastMessage, setRoomId, isConnected } = useSocket();
 
     // Watch for incoming messages
     watch(lastMessage, (newMsg) => {
@@ -27,7 +27,30 @@ export function useGame() {
         }
     });
 
-    const joinGame = (name: string, roomId: string) => {
+    const joinGame = async (name: string, roomId: string) => {
+        // 1. Connect to the specific room
+        setRoomId(roomId);
+
+        // 2. Wait for connection to open
+        // Simple polling for now, could be improved with a Promise wrapper or watch
+        const waitForConnection = () => {
+            return new Promise<void>((resolve) => {
+                if (isConnected.value) {
+                    resolve();
+                    return;
+                }
+                const unwatch = watch(isConnected, (connected) => {
+                    if (connected) {
+                        unwatch();
+                        resolve();
+                    }
+                });
+            });
+        };
+
+        await waitForConnection();
+
+        // 3. Send JOIN message
         if (!socket.value) return;
 
         const message = {
