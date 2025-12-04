@@ -61,8 +61,20 @@ export function useGame() {
         socket.value.send(JSON.stringify(message));
     };
 
+    const startGame = () => {
+        if (!socket.value) return;
+        socket.value.send(JSON.stringify({ type: 'START_GAME' }));
+    };
+
+    const stopRound = () => {
+        if (!socket.value) return;
+        socket.value.send(JSON.stringify({ type: 'STOP_ROUND' }));
+    };
+
     return {
         gameState,
-        joinGame
+        joinGame,
+        startGame,
+        stopRound
     };
 }

@@ -1,15 +1,27 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useSocket } from './composables/useSocket';
+import { useGame } from './composables/useGame';
 import LobbyView from './components/LobbyView.vue';
 import HomeView from './components/HomeView.vue';
+import GameView from './components/GameView.vue';
 
 const { isConnected } = useSocket();
+const { gameState } = useGame();
 const currentView = ref<'HOME' | 'LOBBY' | 'GAME'>('HOME');
 
 const handleNavigate = (view: 'HOME' | 'LOBBY' | 'GAME') => {
   currentView.value = view;
 };
+
+// Auto-switch to GAME view when status changes to PLAYING
+watch(() => gameState.value.status, (newStatus) => {
+    if (newStatus === 'PLAYING' || newStatus === 'REVIEW') {
+        currentView.value = 'GAME';
+    } else if (newStatus === 'LOBBY' && currentView.value === 'GAME') {
+        currentView.value = 'LOBBY';
+    }
+});
 </script>
 
 <template>
@@ -36,6 +48,7 @@ const handleNavigate = (view: 'HOME' | 'LOBBY' | 'GAME') => {
     <div class="w-full max-w-4xl transition-all duration-500">
       <HomeView v-if="currentView === 'HOME'" @navigate="handleNavigate" />
       <LobbyView v-else-if="currentView === 'LOBBY'" />
+      <GameView v-else-if="currentView === 'GAME'" />
     </div>
 
   </div>

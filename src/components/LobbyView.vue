@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { useGame } from '../composables/useGame';
 
-const { gameState } = useGame();
+const { gameState, startGame } = useGame();
 
 // We need to know if *we* are the host. 
 // Since we don't have a persistent "myPlayerId" in this simple mock setup yet,
@@ -57,6 +57,7 @@ const { gameState } = useGame();
                 <!-- In real app: v-if="myPlayer.isHost" -->
                 <button 
                     v-if="gameState.players.length > 0 && gameState.players[0].isHost"
+                    @click="startGame"
                     class="w-full py-3 px-6 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-bold rounded-lg transform transition-all hover:scale-105 shadow-lg flex items-center justify-center gap-2"
                 >
                     <span>🚀</span> Comenzar Partida

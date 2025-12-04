@@ -27,7 +27,11 @@ function getOrCreateRoom(roomId) {
         rooms.set(roomId, {
             status: 'LOBBY',
             players: [],
-            roomId: roomId
+            roomId: roomId,
+            currentLetter: null,
+            categories: ['Nombre', 'Color', 'Fruta', 'País', 'Cosa'], // Default categories
+            answers: {},
+            roundsPlayed: 0
         });
         console.log(`🏠 Created new room: ${roomId}`);
     }
@@ -80,6 +84,31 @@ wss.on('connection', (ws, req) => {
                 console.log(`👤 Player joined ${roomId}: ${newPlayer.name} (Host: ${newPlayer.isHost})`);
 
                 // Broadcast new state only to this room
+                broadcastToRoom(roomId, {
+                    type: "UPDATE_STATE",
+                    payload: currentRoom
+                });
+            } else if (message.type === 'START_GAME') {
+                const currentRoom = getOrCreateRoom(roomId);
+                // Validate Host
+                const player = currentRoom.players.find(p => p.id === connectionId);
+                if (player && player.isHost) {
+                    currentRoom.status = 'PLAYING';
+                    currentRoom.currentLetter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(Math.floor(Math.random() * 26));
+                    currentRoom.answers = {}; // Reset answers for new round
+
+                    console.log(`🎮 Game Started in ${roomId}. Letter: ${currentRoom.currentLetter}`);
+
+                    broadcastToRoom(roomId, {
+                        type: "UPDATE_STATE",
+                        payload: currentRoom
+                    });
+                }
+            } else if (message.type === 'STOP_ROUND') {
+                const currentRoom = getOrCreateRoom(roomId);
+                currentRoom.status = 'REVIEW';
+                console.log(`🛑 Round Stopped in ${roomId} by ${connectionId}`);
+
                 broadcastToRoom(roomId, {
                     type: "UPDATE_STATE",
                     payload: currentRoom

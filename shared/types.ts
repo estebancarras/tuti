@@ -11,11 +11,17 @@ export interface RoomState {
     status: GameStatus;
     players: Player[];
     roomId: string | null;
+    currentLetter: string | null;
+    categories: string[];
+    answers: Record<string, Record<string, string>>; // PlayerID -> { Category -> Answer }
+    roundsPlayed: number;
 }
 
 // Messages sent from Client to Server
 export type ClientMessage =
-    | { type: 'JOIN'; payload: { name: string } };
+    | { type: 'JOIN'; payload: { name: string; roomId: string } }
+    | { type: 'START_GAME' }
+    | { type: 'STOP_ROUND' };
 
 // Messages sent from Server to Client
 export type ServerMessage =
