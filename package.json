@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:mock": "concurrently \"node party/mock-server.js\" \"vite\"",
+    "dev:mock": "concurrently \"npx -y tsx party/mock-server.ts\" \"vite\"",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "party:dev": "partykit dev",
