@@ -3,6 +3,8 @@ import { RoomState, Player } from './types.js';
 export class GameEngine {
     private state: RoomState;
 
+    private connections: Map<string, string>; // ConnectionId -> UserId
+
     constructor(roomId: string) {
         this.state = {
             status: 'LOBBY',
@@ -13,23 +15,25 @@ export class GameEngine {
             answers: {},
             roundsPlayed: 0
         };
+        this.connections = new Map();
     }
 
     public getState(): RoomState {
         return this.state;
     }
 
-    public joinPlayer(id: string, name: string): RoomState {
-        // Check if player already exists to avoid duplicates if re-connecting 
-        // (though in this architecture usually we get a new connection ID, but good to be safe if ID persistence is added later)
-        const existingPlayer = this.state.players.find(p => p.id === id);
+    public joinPlayer(userId: string, name: string, connectionId: string): RoomState {
+        this.connections.set(connectionId, userId);
+
+        const existingPlayer = this.state.players.find(p => p.id === userId);
         if (existingPlayer) {
             existingPlayer.name = name; // Update name if joined again
+            // Ensure they are host if they were host (state preserves it)
             return this.state;
         }
 
         const newPlayer: Player = {
-            id,
+            id: userId,
             name,
             score: 0,
             isHost: this.state.players.length === 0 // First player is host
@@ -39,24 +43,16 @@ export class GameEngine {
         return this.state;
     }
 
-    public removePlayer(id: string): RoomState {
-        const wasHost = this.state.players.find(p => p.id === id)?.isHost;
-        this.state.players = this.state.players.filter(p => p.id !== id);
+    public playerDisconnected(connectionId: string): RoomState {
+        const userId = this.connections.get(connectionId);
+        if (userId) {
+            this.connections.delete(connectionId);
+            // We do NOT remove the player from the list to support reconnection (F5).
+            // They remain in the state.
 
-        // Reassign host if needed
-        if (wasHost && this.state.players.length > 0) {
-            this.state.players[0].isHost = true;
+            // Note: If we wanted to reassign host on long disconnection, we'd need a timer or explicit "leave" action.
+            // For now, we trust the host comes back or the room dies if everyone leaves.
         }
-
-        // If no players left, we could reset, but the server handles room lifecycle. 
-        // The engine just manages state.
-        if (this.state.players.length === 0) {
-            this.state.status = 'LOBBY';
-            this.state.currentLetter = null;
-            this.state.roundsPlayed = 0;
-            this.state.answers = {};
-        }
-
         return this.state;
     }
 

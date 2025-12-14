@@ -6,7 +6,11 @@ import type { RoomState, ServerMessage } from '../../shared/types';
 const gameState = ref<RoomState>({
     status: 'LOBBY',
     players: [],
-    roomId: null
+    roomId: null,
+    currentLetter: null,
+    categories: [],
+    answers: {},
+    roundsPlayed: 0
 });
 
 export function useGame() {
@@ -26,6 +30,14 @@ export function useGame() {
             console.error('Failed to parse message:', e);
         }
     });
+
+    const getOrCreateUserId = (): string => {
+        const stored = localStorage.getItem('tuti-user-id');
+        if (stored) return stored;
+        const newId = crypto.randomUUID();
+        localStorage.setItem('tuti-user-id', newId);
+        return newId;
+    };
 
     const joinGame = async (name: string, roomId: string) => {
         // 1. Connect to the specific room
@@ -53,9 +65,11 @@ export function useGame() {
         // 3. Send JOIN message
         if (!socket.value) return;
 
+        const userId = getOrCreateUserId();
+
         const message = {
             type: 'JOIN',
-            payload: { name, roomId }
+            payload: { name, roomId, userId }
         };
 
         socket.value.send(JSON.stringify(message));

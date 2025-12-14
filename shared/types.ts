@@ -19,7 +19,7 @@ export interface RoomState {
 
 // Messages sent from Client to Server
 export type ClientMessage =
-    | { type: 'JOIN'; payload: { name: string; roomId: string } }
+    | { type: 'JOIN'; payload: { name: string; roomId: string; userId: string } }
     | { type: 'START_GAME' }
     | { type: 'STOP_ROUND' };
 

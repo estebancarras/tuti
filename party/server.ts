@@ -29,7 +29,7 @@ export default class Room implements Party.Server {
             const parsed = JSON.parse(message);
 
             if (parsed.type === 'JOIN') {
-                this.engine.joinPlayer(sender.id, parsed.payload.name);
+                this.engine.joinPlayer(parsed.payload.userId, parsed.payload.name, sender.id);
             } else if (parsed.type === 'START_GAME') {
                 this.engine.startGame(sender.id);
             } else if (parsed.type === 'STOP_ROUND') {
@@ -48,7 +48,7 @@ export default class Room implements Party.Server {
     }
 
     onClose(connection: Party.Connection) {
-        this.engine.removePlayer(connection.id);
+        this.engine.playerDisconnected(connection.id);
 
         // Broadcast new state
         this.room.broadcast(JSON.stringify({

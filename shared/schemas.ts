@@ -18,6 +18,7 @@ export const JoinRoomSchema = z.object({
     type: z.literal('JOIN'),
     payload: z.object({
         name: z.string().min(1, "El nombre es obligatorio").max(20, "El nombre es muy largo"),
+        userId: z.string(),
     }),
 });
 

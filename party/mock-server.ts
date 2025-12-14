@@ -173,8 +173,8 @@ const wss = new WebSocketServer({ port: 1999 });
 
 console.log('🎉 Mock PartyKit Server running on ws://localhost:1999');
 
-const rooms = new Map < string, GameEngine> ();
-const socketMetadata = new Map < any, { roomId: string, playerId: string }> ();
+const rooms = new Map<string, GameEngine>();
+const socketMetadata = new Map<any, { roomId: string, playerId: string }>();
 
 function broadcastToRoom(roomId: string, message: any) {
     const data = JSON.stringify(message);
@@ -221,7 +221,7 @@ wss.on('connection', (ws, req) => {
             const engine = getOrCreateRoom(roomId);
 
             if (message.type === 'JOIN') {
-                engine.joinPlayer(connectionId, message.payload.name);
+                engine.joinPlayer(message.payload.userId, message.payload.name, connectionId);
             } else if (message.type === 'START_GAME') {
                 engine.startGame(connectionId);
             } else if (message.type === 'STOP_ROUND') {
@@ -245,18 +245,14 @@ wss.on('connection', (ws, req) => {
         if (metadata) {
             const engine = rooms.get(roomId);
             if (engine) {
-                engine.removePlayer(connectionId);
+                engine.playerDisconnected(connectionId);
                 // Broadcast update
                 broadcastToRoom(roomId, {
                     type: "UPDATE_STATE",
                     payload: engine.getState()
                 });
 
-                // Cleanup empty room
-                if (engine.getState().players.length === 0) {
-                    rooms.delete(roomId);
-                    console.log(`🗑️ Room ${roomId} deleted (empty)`);
-                }
+                // Cleanup empty room logic removed for persistence
             }
             socketMetadata.delete(ws);
         }
