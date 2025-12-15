@@ -5,6 +5,8 @@ export interface Player {
     name: string;
     score: number;
     isHost: boolean;
+    isConnected: boolean;
+    lastSeenAt: number;
 }
 
 export interface GameConfig {

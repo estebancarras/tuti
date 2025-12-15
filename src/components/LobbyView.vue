@@ -41,17 +41,30 @@ const isHost = computed(() => gameState.value.players.length > 0 && gameState.va
                 <div 
                     v-for="player in gameState.players" 
                     :key="player.id"
-                    class="flex items-center justify-between p-3 rounded-lg bg-black/20 border border-white/5 transition-all hover:bg-black/30"
+                    :class="['flex items-center justify-between p-3 rounded-lg border transition-all hover:bg-black/30', 
+                             player.isConnected ? 'bg-black/20 border-white/5' : 'bg-black/10 border-white/5 opacity-50']"
                 >
                     <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold text-sm">
-                            {{ player.name.charAt(0).toUpperCase() }}
+                        <div class="relative">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold text-sm">
+                                {{ player.name.charAt(0).toUpperCase() }}
+                            </div>
+                            <!-- Online Status Dot -->
+                            <div 
+                                :class="['absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-black', 
+                                         player.isConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(74,222,128,0.6)]' : 'bg-red-500/50']"
+                            ></div>
                         </div>
-                        <span class="text-white font-medium">
-                            {{ player.name }}
-                        </span>
+                        <div class="flex flex-col">
+                            <span class="text-white font-medium">
+                                {{ player.name }}
+                            </span>
+                            <span v-if="!player.isConnected" class="text-[10px] text-red-400 uppercase font-bold tracking-wider">
+                                DESCONECTADO
+                            </span>
+                        </div>
                     </div>
-                    <span v-if="player.isHost" class="text-xs font-bold text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded flex items-center gap-1">
+                    <span v-if="player.isHost" class="text-xs font-bold text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded flex items-center gap-1 shadow-[0_0_10px_rgba(250,204,21,0.2)]">
                         👑 HOST
                     </span>
                 </div>

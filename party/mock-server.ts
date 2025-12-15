@@ -321,6 +321,16 @@ wss.on('connection', (ws, req) => {
 
     ws.on('close', () => {
         console.log(`❌ Client disconnected: ${connectionId} from ${roomId}`);
+
+        const engine = getOrCreateRoom(roomId);
+        engine.playerDisconnected(connectionId);
+
+        // Broadcast immediately
+        broadcastToRoom(roomId, {
+            type: "UPDATE_STATE",
+            payload: engine.getState()
+        });
+
         const metadata = socketMetadata.get(ws);
         if (metadata) {
             const engine = rooms.get(roomId);

@@ -5,6 +5,8 @@ export const PlayerSchema = z.object({
     name: z.string().min(1).max(20),
     score: z.number(),
     isHost: z.boolean(),
+    isConnected: z.boolean(),
+    lastSeenAt: z.number()
 });
 
 export const GameStatusSchema = z.enum(['LOBBY', 'PLAYING', 'REVIEW', 'RESULTS']);

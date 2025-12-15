@@ -68,8 +68,9 @@ export class GameEngine {
 
         const existingPlayer = this.state.players.find(p => p.id === userId);
         if (existingPlayer) {
-            existingPlayer.name = name; // Update name if joined again
-            // Ensure they are host if they were host (state preserves it)
+            existingPlayer.name = name;
+            existingPlayer.isConnected = true;
+            existingPlayer.lastSeenAt = Date.now();
             return this.state;
         }
 
@@ -77,7 +78,9 @@ export class GameEngine {
             id: userId,
             name,
             score: 0,
-            isHost: this.state.players.length === 0 // First player is host
+            isHost: this.state.players.length === 0, // First player is host
+            isConnected: true,
+            lastSeenAt: Date.now()
         };
 
         this.state.players.push(newPlayer);
@@ -88,14 +91,40 @@ export class GameEngine {
         const userId = this.connections.get(connectionId);
         if (userId) {
             this.connections.delete(connectionId);
-            // We do NOT remove the player from the list to support reconnection (F5).
-            // They remain in the state.
 
-            // Note: If we wanted to reassign host on long disconnection, we'd need a timer or explicit "leave" action.
-            // For now, we trust the host comes back or the room dies if everyone leaves.
+            const player = this.state.players.find(p => p.id === userId);
+            if (player) {
+                player.isConnected = false;
+                player.lastSeenAt = Date.now();
+
+                if (player.isHost) {
+                    this.handleHostSuccession(player.id);
+                }
+            }
         }
         return this.state;
     }
+
+    private handleHostSuccession(oldHostId: string) {
+        // Find next candidate: connected and not the old host
+        // We prioritize FIFO order which usually matches array order
+        const candidate = this.state.players.find(p => p.isConnected && p.id !== oldHostId);
+
+        if (candidate) {
+            // Transfer host status
+            const oldHost = this.state.players.find(p => p.id === oldHostId);
+            if (oldHost) oldHost.isHost = false;
+
+            candidate.isHost = true;
+            // console.log(`👑 Host succession: ${oldHostId} -> ${candidate.id}`);
+        }
+    }
+
+    // We do NOT remove the player from the list to support reconnection (F5).
+    // They remain in the state.
+
+    // Note: If we wanted to reassign host on long disconnection, we'd need a timer or explicit "leave" action.
+    // For now, we trust the host comes back or the room dies if everyone leaves.
 
     public startGame(connectionId: string): RoomState {
         const userId = this.connections.get(connectionId);
