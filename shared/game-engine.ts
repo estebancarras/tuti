@@ -101,6 +101,11 @@ export class GameEngine {
                 if (player.isHost) {
                     this.handleHostSuccession(player.id);
                 }
+
+                // If in REVIEW, check if this disconnection unblocks the game
+                if (this.state.status === 'REVIEW') {
+                    this.checkConsensus();
+                }
             }
         }
         return this.state;
@@ -171,7 +176,15 @@ export class GameEngine {
         const player = this.state.players.find(p => p.id === userId);
         if (player && this.state.status === 'PLAYING') {
             this.state.status = 'REVIEW';
-            this.state.answers[userId] = answers;
+
+            // Sanitize answers: trim and slice
+            const sanitizedAnswers: Record<string, string> = {};
+            for (const [key, value] of Object.entries(answers)) {
+                if (typeof value === 'string') {
+                    sanitizedAnswers[key] = value.trim().slice(0, 30);
+                }
+            }
+            this.state.answers[userId] = sanitizedAnswers;
 
             // Cancel Round Timer (server will handle clearing alarm if needed, or check state)
             this.state.timers.roundEndsAt = null;
@@ -187,7 +200,14 @@ export class GameEngine {
 
         const player = this.state.players.find(p => p.id === userId);
         if (player && (this.state.status === 'PLAYING' || this.state.status === 'REVIEW')) {
-            this.state.answers[userId] = answers;
+            // Sanitize answers: trim and slice
+            const sanitizedAnswers: Record<string, string> = {};
+            for (const [key, value] of Object.entries(answers)) {
+                if (typeof value === 'string') {
+                    sanitizedAnswers[key] = value.trim().slice(0, 30);
+                }
+            }
+            this.state.answers[userId] = sanitizedAnswers;
         }
         return this.state;
     }
@@ -217,11 +237,64 @@ export class GameEngine {
             this.state.whoFinishedVoting.push(userId);
         }
 
-        // Check consensus (naive check: all players must confirm)
-        if (this.state.whoFinishedVoting.length === this.state.players.length) {
+        this.checkConsensus();
+
+        return this.state;
+    }
+
+    private checkConsensus() {
+        const activePlayers = this.state.players.filter(p => p.isConnected);
+        const confirmedActivePlayers = activePlayers.filter(p => this.state.whoFinishedVoting.includes(p.id));
+
+        // Check if ALL active players have confirmed
+        if (confirmedActivePlayers.length === activePlayers.length && activePlayers.length > 0) {
             this.calculateResults();
         }
+    }
 
+    public kickPlayer(hostConnectionId: string, targetUserId: string): RoomState {
+        const hostId = this.connections.get(hostConnectionId);
+        if (!hostId) return this.state;
+
+        const hostPlayer = this.state.players.find(p => p.id === hostId);
+        if (!hostPlayer || !hostPlayer.isHost) return this.state; // Only host can kick
+
+        if (hostId === targetUserId) return this.state; // Cannot kick self
+
+        // Remove player
+        const playerIndex = this.state.players.findIndex(p => p.id === targetUserId);
+        if (playerIndex !== -1) {
+            // Remove from array
+            this.state.players.splice(playerIndex, 1);
+
+            // Clean up connections map (inefficient but safe scan)
+            for (const [connId, uid] of this.connections.entries()) {
+                if (uid === targetUserId) {
+                    this.connections.delete(connId);
+                }
+            }
+
+            // Clean up state
+            delete this.state.answers[targetUserId];
+            delete this.state.votes[targetUserId];
+            delete this.state.roundScores[targetUserId];
+
+            // Remove votes made by this player against others
+            for (const targetId in this.state.votes) {
+                for (const category in this.state.votes[targetId]) {
+                    const voters = this.state.votes[targetId][category];
+                    const idx = voters.indexOf(targetUserId);
+                    if (idx !== -1) {
+                        voters.splice(idx, 1);
+                    }
+                }
+            }
+
+            // If kicking unblocked the game
+            if (this.state.status === 'REVIEW') {
+                this.checkConsensus();
+            }
+        }
         return this.state;
     }
 

@@ -43,8 +43,13 @@ export default class Room implements Party.Server {
             } else if (parsed.type === 'UPDATE_CONFIG') {
                 this.engine.updateConfig(sender.id, parsed.payload);
             }
+
             else if (parsed.type === 'RESTART_GAME') {
                 this.engine.restartGame();
+            }
+            else if (parsed.type === 'KICK_PLAYER') {
+                this.engine.kickPlayer(sender.id, parsed.payload.targetUserId);
+                // We rely on the broadcast state update to notify the client they've been kicked
             }
             else if (parsed.type === 'EXIT_GAME') {
                 // Do nothing specific on server, connection close handles disconnect

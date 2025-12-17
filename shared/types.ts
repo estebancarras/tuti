@@ -49,6 +49,7 @@ export type ClientMessage =
     | { type: 'CONFIRM_VOTES' }
     | { type: 'UPDATE_CONFIG'; payload: Partial<GameConfig> }
     | { type: 'RESTART_GAME' }
+    | { type: 'KICK_PLAYER'; payload: { targetUserId: string } }
     | { type: 'EXIT_GAME' };
 
 // Messages sent from Server to Client

@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useSocket } from './useSocket';
 import type { RoomState, ServerMessage } from '../../shared/types';
 
@@ -51,7 +51,11 @@ export function useGame() {
         localStorage.setItem('tuti-user-id', myUserId.value);
     }
 
-    const getOrCreateUserId = (): string => myUserId.value;
+    // Computed: Check if current user is host
+    const amIHost = computed(() => {
+        const me = gameState.value.players.find(p => p.id === myUserId.value);
+        return me?.isHost || false;
+    });
 
     const joinGame = async (name: string, roomId: string) => {
         // 1. Connect to the specific room
@@ -79,7 +83,7 @@ export function useGame() {
         // 3. Send JOIN message
         if (!socket.value) return;
 
-        const userId = getOrCreateUserId();
+        const userId = myUserId.value; // Use the reactive myUserId
 
         const message = {
             type: 'JOIN',
@@ -151,6 +155,7 @@ export function useGame() {
         toggleVote,
         confirmVotes,
         updateConfig,
-        myUserId
+        myUserId,
+        amIHost
     };
 }

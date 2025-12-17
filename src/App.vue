@@ -8,7 +8,7 @@ import GameView from './components/GameView.vue';
 import GameOverView from './components/GameOverView.vue';
 
 const { isConnected } = useSocket();
-const { gameState } = useGame();
+const { gameState, myUserId } = useGame();
 const currentView = ref<'HOME' | 'LOBBY' | 'GAME' | 'GAME_OVER'>('HOME');
 
 const handleNavigate = (view: 'HOME' | 'LOBBY' | 'GAME' | 'GAME_OVER') => {
@@ -25,6 +25,32 @@ watch(() => gameState.value.status, (newStatus) => {
         currentView.value = 'GAME_OVER';
     }
 });
+
+
+// Detect if current user has been kicked
+let wasInGame = false; // Track if we were previously in the game
+watch(() => gameState.value.players, (newPlayers) => {
+    // If we have a userId and we're not in HOME view
+    if (myUserId.value && currentView.value !== 'HOME') {
+        // Check if we're still in the players list
+        const stillInGame = newPlayers.some(p => p.id === myUserId.value);
+        
+        // If we're not in the list anymore BUT we were before, we were kicked
+        if (!stillInGame && wasInGame && newPlayers.length > 0) {
+            alert('Has sido expulsado de la sala por el anfitrión.');
+            // Reload page to reset state
+            window.location.reload();
+        }
+        
+        // Update tracking flag
+        if (stillInGame) {
+            wasInGame = true;
+        }
+    } else {
+        // Reset flag when returning to HOME
+        wasInGame = false;
+    }
+}, { deep: true });
 </script>
 
 <template>

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useGame } from '../composables/useGame';
+import { useSocket } from '../composables/useSocket'; // Import socket composable
 
-const { gameState, startGame, updateConfig, myUserId } = useGame();
+const { gameState, startGame, updateConfig, myUserId, amIHost } = useGame();
+const { socket } = useSocket();
 
 // Local state for config inputs (we'll sync them with gameState.config)
 const localConfig = computed(() => gameState.value.config);
@@ -11,11 +13,14 @@ const handleConfigChange = (field: 'roundDuration' | 'votingDuration' | 'categor
     updateConfig({ [field]: value });
 };
 
-// Check if current user is host checking ID
-const amIHost = computed(() => {
-    const me = gameState.value.players.find(p => p.id === myUserId.value);
-    return me?.isHost || false;
-});
+const kickPlayer = (targetUserId: string, name: string) => {
+    if (confirm(`¿Estás seguro de que quieres expulsar a ${name}?`)) {
+        socket.value?.send(JSON.stringify({
+            type: 'KICK_PLAYER',
+            payload: { targetUserId }
+        }));
+    }
+};
 </script>
 
 <template>
@@ -44,7 +49,7 @@ const amIHost = computed(() => {
                 <div 
                     v-for="player in gameState.players" 
                     :key="player.id"
-                    :class="['flex items-center justify-between p-3 rounded-lg border transition-all hover:bg-black/30', 
+                    :class="['flex items-center justify-between p-3 rounded-lg border transition-all hover:bg-black/30 group', 
                              player.isConnected ? 'bg-black/20 border-white/5' : 'bg-black/10 border-white/5 opacity-50']"
                 >
                     <div class="flex items-center gap-3">
@@ -61,16 +66,29 @@ const amIHost = computed(() => {
                         <div class="flex flex-col">
                             <span class="text-white font-medium">
                                 {{ player.name }}
-                                <span v-if="player.id === myUserId" class="ml-1 text-purple-300 font-bold">(Tú)</span>
+                                <span v-if="player.id === myUserId" class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">(Tú)</span>
                             </span>
                             <span v-if="!player.isConnected" class="text-[10px] text-red-400 uppercase font-bold tracking-wider">
                                 DESCONECTADO
                             </span>
                         </div>
                     </div>
-                    <span v-if="player.isHost" class="text-xs font-bold text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded flex items-center gap-1 shadow-[0_0_10px_rgba(250,204,21,0.2)]">
-                        👑 HOST
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <span v-if="player.isHost" class="text-xs font-bold text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded flex items-center gap-1 shadow-[0_0_10px_rgba(250,204,21,0.2)]">
+                            👑 HOST
+                        </span>
+                        <!-- Kick Button (Host Only) -->
+                        <button 
+                            v-if="amIHost && player.id !== myUserId"
+                            @click="kickPlayer(player.id, player.name)"
+                            class="text-red-500 hover:text-red-700 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Expulsar jugador"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
 
