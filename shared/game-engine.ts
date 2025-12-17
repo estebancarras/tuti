@@ -133,22 +133,33 @@ export class GameEngine {
 
         const player = this.state.players.find(p => p.id === userId);
         if (player && player.isHost) {
-            this.state.status = 'PLAYING';
-            this.state.currentLetter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(Math.floor(Math.random() * 26));
 
-            // Select random categories
-            const shuffled = [...MASTER_CATEGORIES].sort(() => 0.5 - Math.random());
-            this.state.categories = shuffled.slice(0, this.state.config.categoriesCount);
+            // CASE 1: Manual "Next Round" from Results screen
+            if (this.state.status === 'RESULTS') {
+                return this.forceStartNextRound();
+            }
 
-            this.state.answers = {}; // Reset answers for new round
-            // Reset Voting System
-            this.state.votes = {};
-            this.state.whoFinishedVoting = [];
-            this.state.roundScores = {};
+            // CASE 2: Starting new game from Lobby/GameOver
+            if (this.state.status === 'LOBBY' || this.state.status === 'GAME_OVER') {
+                this.state.roundsPlayed = 0; // Explicit safety reset
 
-            // Set Timer
-            this.state.timers.roundEndsAt = Date.now() + (this.state.config.roundDuration * 1000);
-            this.state.timers.votingEndsAt = null;
+                this.state.status = 'PLAYING';
+                this.state.currentLetter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(Math.floor(Math.random() * 26));
+
+                // Select random categories
+                const shuffled = [...MASTER_CATEGORIES].sort(() => 0.5 - Math.random());
+                this.state.categories = shuffled.slice(0, this.state.config.categoriesCount);
+
+                this.state.answers = {}; // Reset answers for new round
+                // Reset Voting System
+                this.state.votes = {};
+                this.state.whoFinishedVoting = [];
+                this.state.roundScores = {};
+
+                // Set Timer
+                this.state.timers.roundEndsAt = Date.now() + (this.state.config.roundDuration * 1000);
+                this.state.timers.votingEndsAt = null;
+            }
         }
         return this.state;
     }
@@ -216,6 +227,8 @@ export class GameEngine {
 
     private calculateResults() {
         this.state.status = 'RESULTS';
+
+
         const totalPlayers = this.state.players.length;
 
         this.state.players.forEach(player => {
@@ -282,8 +295,12 @@ export class GameEngine {
         // If we are already in Playing, ignore
         if (this.state.status === 'PLAYING') return this.state;
 
+        // Increment round counter (We are ATTEMPTING to start the next round)
+        // 0 -> 1 (End of Round 1 attempt)
+        this.state.roundsPlayed++;
+
         // Check if Game Over condition is met
-        // roundsPlayed starts at 0, so if roundsPlayed >= totalRounds, game is over
+        // If roundsPlayed (e.g. 2) >= totalRounds (2), we are done.
         if (this.state.roundsPlayed >= this.state.config.totalRounds) {
             this.state.status = 'GAME_OVER';
             // Clear timers
@@ -294,19 +311,11 @@ export class GameEngine {
         }
 
         // Logic similar to startGame but without resetting scores
-        // Logic similar to startGame but without resetting scores
-        // const currentCategoryIdx = this.state.roundsPlayed % MASTER_CATEGORIES.length;
-        // const nextCategories = MASTER_CATEGORIES.slice(currentCategoryIdx, currentCategoryIdx + this.state.config.categoriesCount);
-
-        // Ensure we have enough categories, if not wrap around (simplified)
-        // In a real app we would shuffle better
-
         // Randomize letter
         const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         this.state.currentLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
 
-        // Keep categories for now, or rotate them? 
-        // Let's rotate randomly for variety
+        // Rotate categories randomly for variety
         const shuffled = [...MASTER_CATEGORIES].sort(() => 0.5 - Math.random());
         this.state.categories = shuffled.slice(0, this.state.config.categoriesCount);
 
@@ -327,8 +336,6 @@ export class GameEngine {
         this.state.timers.roundEndsAt = Date.now() + (this.state.config.roundDuration * 1000);
         this.state.timers.votingEndsAt = null;
         this.state.timers.resultsEndsAt = null;
-
-        this.state.roundsPlayed++;
 
         return this.state;
     }
