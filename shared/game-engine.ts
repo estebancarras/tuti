@@ -1,4 +1,5 @@
 import { RoomState, Player, GameConfig } from './types.js';
+import { RoundAnswersSchema } from './schemas.js';
 
 const MASTER_CATEGORIES = [
     'Nombre', 'Apellido', 'País', 'Ciudad', 'Animal', 'Color', 'Fruta/Verdura',
@@ -177,13 +178,10 @@ export class GameEngine {
         if (player && this.state.status === 'PLAYING') {
             this.state.status = 'REVIEW';
 
-            // Sanitize answers: trim and slice
-            const sanitizedAnswers: Record<string, string> = {};
-            for (const [key, value] of Object.entries(answers)) {
-                if (typeof value === 'string') {
-                    sanitizedAnswers[key] = value.trim().slice(0, 30);
-                }
-            }
+            // Validate and Sanitize
+            const sanitizedAnswers = this.validateAndSanitizeAnswers(answers);
+            if (!sanitizedAnswers) return this.state; // Invalid payload
+
             this.state.answers[userId] = sanitizedAnswers;
 
             // Cancel Round Timer (server will handle clearing alarm if needed, or check state)
@@ -200,14 +198,11 @@ export class GameEngine {
 
         const player = this.state.players.find(p => p.id === userId);
         if (player && (this.state.status === 'PLAYING' || this.state.status === 'REVIEW')) {
-            // Sanitize answers: trim and slice
-            const sanitizedAnswers: Record<string, string> = {};
-            for (const [key, value] of Object.entries(answers)) {
-                if (typeof value === 'string') {
-                    sanitizedAnswers[key] = value.trim().slice(0, 30);
-                }
+            // Validate and Sanitize
+            const sanitizedAnswers = this.validateAndSanitizeAnswers(answers);
+            if (sanitizedAnswers) {
+                this.state.answers[userId] = sanitizedAnswers;
             }
-            this.state.answers[userId] = sanitizedAnswers;
         }
         return this.state;
     }
@@ -434,5 +429,37 @@ export class GameEngine {
         this.state.timers.resultsEndsAt = null;
 
         return this.state;
+    }
+
+    private validateAndSanitizeAnswers(rawAnswers: any): Record<string, string> | null {
+        // 1. Zod Validation
+        const result = RoundAnswersSchema.safeParse(rawAnswers);
+        if (!result.success) {
+            console.error('Invalid answers payload:', result.error);
+            return null;
+        }
+
+        const answers = result.data;
+        const sanitized: Record<string, string> = {};
+        const allowedLetter = this.state.currentLetter?.toUpperCase();
+
+        for (const [key, value] of Object.entries(answers)) {
+            let processedValue = value.trim().slice(0, 40); // Hard limit safety
+
+            // 2. Rule Enforcement: Start Letter Check
+            if (allowedLetter && processedValue.length > 0) {
+                const firstChar = processedValue.charAt(0).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const targetChar = allowedLetter.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+                if (firstChar !== targetChar) {
+                    console.log(`[RULE BREACH] Word '${processedValue}' does not start with '${allowedLetter}'. Cleared.`);
+                    processedValue = ""; // WIPE IT
+                }
+            }
+
+            sanitized[key] = processedValue;
+        }
+
+        return sanitized;
     }
 }

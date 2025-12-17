@@ -46,7 +46,8 @@ export const JoinRoomSchema = z.object({
     }),
 });
 
-export const RoundAnswersSchema = z.record(z.string(), z.string());
+
+export const RoundAnswersSchema = z.record(z.string(), z.string().trim().max(40));
 
 export const UpdateStateSchema = z.object({
     type: z.literal('UPDATE_STATE'),

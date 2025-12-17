@@ -79,6 +79,41 @@ watch(() => gameState.value.status, (newStatus) => {
         hasConfirmed.value = false;
     }
 });
+
+const handleInput = (category: string, event: Event) => {
+    const input = event.target as HTMLInputElement;
+    const newValue = input.value;
+    
+    // Strict Input Blocking
+    // If we don't have a letter or input is empty, allow
+    if (!gameState.value.currentLetter || newValue.trim().length === 0) {
+        answers.value[category] = newValue;
+        return;
+    }
+
+    const trimmedVal = newValue.trimStart();
+    const firstChar = trimmedVal.charAt(0).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const targetChar = gameState.value.currentLetter.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    if (firstChar === targetChar) {
+        // Valid start! Update model.
+        answers.value[category] = newValue;
+    } else {
+        // Invalid start!
+        // REJECT change by forcing input back to current model value
+        // Note: We access answers.value[category] directly. If it's undefined, default to ''
+        const currentModelValue = answers.value[category] || '';
+        
+        // Only force update if the DOM value is actually different (it is, because user typed)
+        if (input.value !== currentModelValue) {
+             input.value = currentModelValue;
+             
+             // Optional: Add shake animation class temporarily
+             input.classList.add('animate-pulse', 'bg-red-500/20');
+             setTimeout(() => input.classList.remove('animate-pulse', 'bg-red-500/20'), 200);
+        }
+    }
+};
 </script>
 
 <template>
@@ -139,13 +174,17 @@ watch(() => gameState.value.status, (newStatus) => {
                 <label class="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide group-hover:text-purple-100">
                     {{ category }}
                 </label>
-                <input 
-                    v-model="answers[category]"
-                    type="text"
-                    :placeholder="`Empieza con ${gameState.currentLetter}...`"
-                    class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-black/50 transition-all font-medium text-lg"
-                    autofocus
-                >
+                <div class="relative">
+                    <input 
+                        :value="answers[category]"
+                        @input="handleInput(category, $event)"
+                        type="text"
+                        :placeholder="`Empieza con ${gameState.currentLetter}...`"
+                        class="w-full bg-white/5 border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all font-medium text-lg border-white/10 focus:ring-purple-500 focus:bg-black/50"
+                        autofocus
+                        autocomplete="off"
+                    >
+                </div>
             </div>
         </div>
 

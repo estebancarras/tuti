@@ -28,31 +28,41 @@ export default class Room implements Party.Server {
             console.log(`connection ${sender.id} sent message: ${message}`);
             const parsed = JSON.parse(message);
 
-            if (parsed.type === 'JOIN') {
-                this.engine.joinPlayer(parsed.payload.userId, parsed.payload.name, sender.id);
-            } else if (parsed.type === 'START_GAME') {
-                this.engine.startGame(sender.id);
-            } else if (parsed.type === 'STOP_ROUND') {
-                this.engine.stopRound(sender.id, parsed.payload.answers);
-            } else if (parsed.type === 'SUBMIT_ANSWERS') {
-                this.engine.submitAnswers(sender.id, parsed.payload.answers);
-            } else if (parsed.type === 'TOGGLE_VOTE') {
-                this.engine.toggleVote(sender.id, parsed.payload.targetUserId, parsed.payload.category);
-            } else if (parsed.type === 'CONFIRM_VOTES') {
-                this.engine.confirmVotes(sender.id);
-            } else if (parsed.type === 'UPDATE_CONFIG') {
-                this.engine.updateConfig(sender.id, parsed.payload);
-            }
+            try {
+                if (parsed.type === 'JOIN') {
+                    this.engine.joinPlayer(parsed.payload.userId, parsed.payload.name, sender.id);
+                } else if (parsed.type === 'START_GAME') {
+                    this.engine.startGame(sender.id);
+                } else if (parsed.type === 'STOP_ROUND') {
+                    this.engine.stopRound(sender.id, parsed.payload.answers);
+                } else if (parsed.type === 'SUBMIT_ANSWERS') {
+                    this.engine.submitAnswers(sender.id, parsed.payload.answers);
+                } else if (parsed.type === 'TOGGLE_VOTE') {
+                    this.engine.toggleVote(sender.id, parsed.payload.targetUserId, parsed.payload.category);
+                } else if (parsed.type === 'CONFIRM_VOTES') {
+                    this.engine.confirmVotes(sender.id);
+                } else if (parsed.type === 'UPDATE_CONFIG') {
+                    this.engine.updateConfig(sender.id, parsed.payload);
+                }
 
-            else if (parsed.type === 'RESTART_GAME') {
-                this.engine.restartGame();
-            }
-            else if (parsed.type === 'KICK_PLAYER') {
-                this.engine.kickPlayer(sender.id, parsed.payload.targetUserId);
-                // We rely on the broadcast state update to notify the client they've been kicked
-            }
-            else if (parsed.type === 'EXIT_GAME') {
-                // Do nothing specific on server, connection close handles disconnect
+                else if (parsed.type === 'RESTART_GAME') {
+                    this.engine.restartGame();
+                }
+                else if (parsed.type === 'KICK_PLAYER') {
+                    this.engine.kickPlayer(sender.id, parsed.payload.targetUserId);
+                    // We rely on the broadcast state update to notify the client they've been kicked
+                }
+                else if (parsed.type === 'EXIT_GAME') {
+                    // Do nothing specific on server, connection close handles disconnect
+                }
+            } catch (err) {
+                console.error("[SERVER ERROR] processing message:", err);
+                // Send specific error to the client who caused it
+                sender.send(JSON.stringify({
+                    type: 'ERROR',
+                    payload: { message: (err as Error).message || "Unknown error processing request" }
+                }));
+                return; // Stop processing to avoid broadcasting invalid state
             }
 
             const state = this.engine.getState();
