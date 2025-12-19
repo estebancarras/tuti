@@ -46,11 +46,26 @@ export function useGame() {
         }
     });
 
-    const myUserId = ref<string>(localStorage.getItem('tuti-user-id') || crypto.randomUUID());
-    // Ensure it's saved if we generated a new one
-    if (!localStorage.getItem('tuti-user-id')) {
-        localStorage.setItem('tuti-user-id', myUserId.value);
+    // Persistence Constants
+    const STORAGE_KEY_USER_ID = 'tuti-user-id';
+    const STORAGE_KEY_USER_NAME = 'tuti-user-name';
+
+    // 1. User ID Persistence
+    const getStoredUserId = () => localStorage.getItem(STORAGE_KEY_USER_ID);
+    const myUserId = ref<string>(getStoredUserId() || crypto.randomUUID());
+
+    // Ensure it's saved if we generated a new one or if it was missing
+    if (!getStoredUserId()) {
+        localStorage.setItem(STORAGE_KEY_USER_ID, myUserId.value);
     }
+
+    // 2. User Name Persistence
+    const myUserName = ref<string>(localStorage.getItem(STORAGE_KEY_USER_NAME) || '');
+
+    // Watch and save name changes
+    watch(myUserName, (newName) => {
+        localStorage.setItem(STORAGE_KEY_USER_NAME, newName);
+    });
 
     // Computed: Check if current user is host
     const amIHost = computed(() => {
@@ -157,6 +172,7 @@ export function useGame() {
         confirmVotes,
         updateConfig,
         myUserId,
+        myUserName,
         amIHost
     };
 }

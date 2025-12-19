@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { generateRoomId } from '../utils/random';
 import { useGame } from '../composables/useGame';
 
 const emit = defineEmits(['navigate']);
-const { joinGame } = useGame();
+const { joinGame, myUserName } = useGame();
 
 const showJoinInput = ref(false);
 const joinCode = ref('');
-const playerName = ref('');
+// Initialize with persisted name, sync back on input
+const playerName = ref(myUserName.value);
+
+watch(playerName, (val: string) => {
+    myUserName.value = val;
+});
 
 const handleCreateRoom = () => {
     if (!playerName.value.trim()) {
