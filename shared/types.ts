@@ -48,6 +48,7 @@ export type ClientMessage =
     | { type: 'START_GAME' }
     | { type: 'STOP_ROUND'; payload: { answers: RoundAnswers } }
     | { type: 'SUBMIT_ANSWERS'; payload: { answers: RoundAnswers } }
+    | { type: 'UPDATE_ANSWERS'; payload: { answers: RoundAnswers } }
     | { type: 'TOGGLE_VOTE'; payload: { targetUserId: string; category: string } }
     | { type: 'CONFIRM_VOTES' }
     | { type: 'UPDATE_CONFIG'; payload: Partial<GameConfig> }

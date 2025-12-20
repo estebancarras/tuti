@@ -67,6 +67,10 @@ export default class Room implements Party.Server {
                 } else if (parsed.type === 'SUBMIT_ANSWERS') {
                     this.engine.submitAnswers(sender.id, parsed.payload.answers);
                     shouldPersist = true;
+                } else if (parsed.type === 'UPDATE_ANSWERS') {
+                    // Passive update (debounce), same logic as submit but distinct message type for clarity
+                    this.engine.submitAnswers(sender.id, parsed.payload.answers);
+                    shouldPersist = true;
                 } else if (parsed.type === 'TOGGLE_VOTE') {
                     this.engine.toggleVote(sender.id, parsed.payload.targetUserId, parsed.payload.category);
                     shouldPersist = true;

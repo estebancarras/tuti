@@ -2,7 +2,7 @@
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { useGame } from '../composables/useGame';
 
-const { gameState, stopRound, submitAnswers, shouldSubmit, toggleVote, confirmVotes } = useGame();
+const { gameState, stopRound, submitAnswers, debouncedUpdateAnswers, shouldSubmit, toggleVote, confirmVotes } = useGame();
 
 const answers = ref<Record<string, string>>({});
 const hasConfirmed = ref(false);
@@ -82,37 +82,27 @@ watch(() => gameState.value.status, (newStatus) => {
 
 const handleInput = (category: string, event: Event) => {
     const input = event.target as HTMLInputElement;
-    const newValue = input.value;
-    
-    // Strict Input Blocking
-    // If we don't have a letter or input is empty, allow
-    if (!gameState.value.currentLetter || newValue.trim().length === 0) {
-        answers.value[category] = newValue;
-        return;
-    }
+    let val = input.value;
 
-    const trimmedVal = newValue.trimStart();
-    const firstChar = trimmedVal.charAt(0).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const targetChar = gameState.value.currentLetter.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    // Strict Blocking: enforce start char
+    if (gameState.value.currentLetter && val.length > 0) {
+        const firstChar = val.charAt(0).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const targetChar = gameState.value.currentLetter.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-    if (firstChar === targetChar) {
-        // Valid start! Update model.
-        answers.value[category] = newValue;
-    } else {
-        // Invalid start!
-        // REJECT change by forcing input back to current model value
-        // Note: We access answers.value[category] directly. If it's undefined, default to ''
-        const currentModelValue = answers.value[category] || '';
-        
-        // Only force update if the DOM value is actually different (it is, because user typed)
-        if (input.value !== currentModelValue) {
-             input.value = currentModelValue;
-             
-             // Optional: Add shake animation class temporarily
-             input.classList.add('animate-pulse', 'bg-red-500/20');
-             setTimeout(() => input.classList.remove('animate-pulse', 'bg-red-500/20'), 200);
+        if (firstChar !== targetChar) {
+            // Block input
+            val = ""; 
+            input.value = ""; // Force clear UI
+            // Visual feedback
+            input.classList.add('bg-red-500/20', 'animate-pulse');
+            setTimeout(() => input.classList.remove('bg-red-500/20', 'animate-pulse'), 500);
         }
     }
+
+    answers.value[category] = val;
+    
+    // Auto-save to server (Debounced)
+    debouncedUpdateAnswers(answers.value);
 };
 </script>
 

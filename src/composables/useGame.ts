@@ -1,5 +1,6 @@
 import { ref, watch, computed } from 'vue';
 import { useSocket } from './useSocket';
+import { debounce } from '../utils/timing';
 import type { RoomState, ServerMessage } from '../../shared/types';
 
 // Global state to persist across component mounts if needed
@@ -130,6 +131,17 @@ export function useGame() {
         }));
     };
 
+    // Continuous Sync (Debounced)
+    const updateAnswers = (answers: Record<string, string>) => {
+        if (!socket.value) return;
+        socket.value.send(JSON.stringify({
+            type: 'UPDATE_ANSWERS',
+            payload: { answers }
+        }));
+    };
+
+    const debouncedUpdateAnswers = debounce(updateAnswers, 500);
+
     // Watch for state changes to REVIEW to trigger submitting answers if we haven't already
     // Note: The UI component should handle calling 'submitAnswers' when it detects the state change 
     // to grab the current values from the inputs. 
@@ -167,6 +179,7 @@ export function useGame() {
         startGame,
         stopRound,
         submitAnswers,
+        debouncedUpdateAnswers,
         shouldSubmit,
         toggleVote,
         confirmVotes,
