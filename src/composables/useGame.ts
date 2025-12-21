@@ -173,6 +173,13 @@ export function useGame() {
         }));
     };
 
+    const resetGame = () => {
+        if (!socket.value) return;
+        socket.value.send(JSON.stringify({
+            type: 'RESTART_GAME'
+        }));
+    };
+
     return {
         gameState,
         joinGame,
@@ -184,6 +191,7 @@ export function useGame() {
         toggleVote,
         confirmVotes,
         updateConfig,
+        resetGame,
         myUserId,
         myUserName,
         amIHost

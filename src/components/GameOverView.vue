@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useGame } from '../composables/useGame';
-import { useSocket } from '../composables/useSocket';
-
-const { gameState, myUserId } = useGame();
-const { socket } = useSocket();
+const { gameState, myUserId, resetGame } = useGame();
 
 // Check if current user is host checking ID
 const amIHost = computed(() => {
@@ -19,9 +16,7 @@ const sortedPlayers = computed(() => {
 const top3 = computed(() => sortedPlayers.value.slice(0, 3));
 const rest = computed(() => sortedPlayers.value.slice(3));
 
-const restartGame = () => {
-    socket.value?.send(JSON.stringify({ type: 'RESTART_GAME' }));
-};
+
 
 const exitGame = () => {
     window.location.reload();
@@ -118,11 +113,14 @@ const exitGame = () => {
             </button>
             <button 
                 v-if="amIHost"
-                @click="restartGame"
+                @click="resetGame"
                 class="px-8 py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold shadow-lg transition-all hover:scale-105 hover:shadow-purple-500/25 ring-2 ring-white/20"
             >
                 Volver al Lobby
             </button>
+            <div v-else class="flex flex-col items-center justify-center p-3 bg-white/5 rounded-full border border-white/10 px-6">
+                <span class="text-purple-200 text-sm animate-pulse">Esperando al anfitrión...</span>
+            </div>
         </div>
     </div>
 </template>

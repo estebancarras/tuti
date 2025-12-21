@@ -301,6 +301,14 @@ wss.on('connection', (ws, req) => {
                 engine.confirmVotes(connectionId);
             } else if (message.type === 'UPDATE_CONFIG') {
                 engine.updateConfig(connectionId, message.payload);
+            } else if (message.type === 'UPDATE_ANSWERS') {
+                // Reuse submitAnswers logic
+                engine.submitAnswers(connectionId, message.payload.answers);
+            } else if (message.type === 'RESTART_GAME') {
+                console.log("[MOCK] RESTART_GAME received. Resetting...");
+                engine.restartGame();
+            } else if (message.type === 'KICK_PLAYER') {
+                engine.kickPlayer(connectionId, message.payload.targetUserId);
             }
 
             const newState = engine.getState();
