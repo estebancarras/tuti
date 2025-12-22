@@ -2,7 +2,7 @@
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { useGame } from '../composables/useGame';
 
-const { gameState, stopRound, submitAnswers, debouncedUpdateAnswers, shouldSubmit, toggleVote, confirmVotes } = useGame();
+const { gameState, stopRound, submitAnswers, debouncedUpdateAnswers, shouldSubmit, toggleVote, confirmVotes, myUserId } = useGame();
 
 const answers = ref<Record<string, string>>({});
 const hasConfirmed = ref(false);
@@ -58,6 +58,24 @@ const timerColor = computed(() => {
 
 const handleStop = () => {
     stopRound(answers.value);
+};
+
+// Carousel Logic for Review Phase
+const activeCategoryIndex = ref(0);
+const currentCategory = computed(() => {
+    return gameState.value.categories[activeCategoryIndex.value] || '';
+});
+
+const nextCategory = () => {
+    if (activeCategoryIndex.value < gameState.value.categories.length - 1) {
+        activeCategoryIndex.value++;
+    }
+};
+
+const prevCategory = () => {
+    if (activeCategoryIndex.value > 0) {
+        activeCategoryIndex.value--;
+    }
 };
 
 const handleConfirmVotes = () => {
@@ -178,59 +196,98 @@ const handleInput = (category: string, event: Event) => {
             </div>
         </div>
 
-        <!-- === REVIEW STATE (VOTING TABLE) === -->
-        <div v-else-if="gameState.status === 'REVIEW'" class="bg-black/40 backdrop-blur-md rounded-2xl overflow-hidden border border-white/10">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-white/10 text-purple-200 uppercase text-sm tracking-wider">
-                            <th class="p-4 font-bold border-b border-white/10">Jugador</th>
-                            <th v-for="cat in gameState.categories" :key="cat" class="p-4 font-bold border-b border-white/10">{{ cat }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="player in gameState.players" :key="player.id" class="border-b border-white/5 hover:bg-white/5 transition-colors">
-                            <td class="p-4 text-white font-bold">{{ player.name }}</td>
-                            
-                            <td v-for="cat in gameState.categories" :key="cat" class="p-2">
-                                <div 
-                                    @click="toggleVote(player.id, cat)"
-                                    class="relative p-3 rounded-lg cursor-pointer transition-all border group select-none"
-                                    :class="[
-                                        (gameState.votes[player.id]?.[cat]?.length || 0) > 0 
-                                            ? 'bg-red-500/20 border-red-500/50 hover:bg-red-500/30' 
-                                            : 'bg-white/5 border-transparent hover:bg-white/10'
-                                    ]"
-                                >
-                                    <!-- Word Value -->
-                                    <span class="text-white font-medium block" 
-                                          :class="{'line-through text-white/50': (gameState.votes[player.id]?.[cat]?.length || 0) > 0}">
-                                        {{ gameState.answers[player.id]?.[cat] || '-' }}
-                                    </span>
-                                    
-                                    <!-- Vote Count Badge -->
-                                    <span v-if="(gameState.votes[player.id]?.[cat]?.length || 0) > 0" 
-                                          class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg">
-                                        -1
-                                    </span>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <!-- === REVIEW STATE (VOTING MOCKUP) === -->
+        <div v-else-if="gameState.status === 'REVIEW'" class="flex-1 overflow-auto p-4 flex flex-col items-center bg-[#491B8F]">
             
-            <div class="p-6 flex justify-end bg-black/20">
-                <button 
-                    v-if="!hasConfirmed"
-                    @click="handleConfirmVotes"
-                    class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all transform hover:scale-105"
-                >
-                    CONFIRMAR VOTOS
+            <!-- Title Section -->
+            <h2 class="text-4xl font-bold text-white mb-2 tracking-tight">Votación</h2>
+            <h3 class="text-2xl font-bold text-white mb-8">Categoría: <span class="text-white">{{ currentCategory }}</span></h3>
+            
+            <!-- Carousel Navigation (Hidden visually but functional via swipe/buttons if needed, but mockup implies static or swipe? Kept buttons for usability but styled minimally) -->
+            <!-- Actually mockup shows "Categoria: K". We need navigation. I will keep minimal arrows next to category text or bottom. 
+                 Mockup doesn't show nav. I'll put arrows next to Category for UX. -->
+            
+            <div class="flex items-center gap-4 mb-6">
+                <button @click="prevCategory" :disabled="activeCategoryIndex === 0" class="text-white/50 hover:text-white disabled:opacity-0 transition-colors">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7" /></svg>
                 </button>
-                <div v-else class="text-gray-400 font-medium italic bg-white/5 px-6 py-3 rounded-xl">
-                    Esperando a los demás jugadores... ({{ gameState.whoFinishedVoting.length }} / {{ gameState.players.length }})
+                <div class="h-1 w-1"></div> <!-- Spacer -->
+                <button @click="nextCategory" :disabled="activeCategoryIndex === gameState.categories.length - 1" class="text-white/50 hover:text-white disabled:opacity-0 transition-colors">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" /></svg>
+                </button>
+            </div>
+
+            <!-- Main Container -->
+            <div class="w-full max-w-lg bg-[#7C4DFF]/20 backdrop-blur-sm rounded-3xl overflow-hidden mb-24 shadow-2xl border border-white/5">
+                
+                <!-- Table Header -->
+                <div class="grid grid-cols-[1.5fr_1.5fr_auto] px-6 py-4 bg-white/5 border-b border-white/10">
+                    <span class="text-white/70 font-bold text-sm tracking-wider uppercase">NOMBRE</span>
+                    <span class="text-white/70 font-bold text-sm tracking-wider uppercase">PALABRA</span>
+                    <span class="w-12"></span> <!-- Spacer for Toggle -->
                 </div>
+
+                <!-- Rows -->
+                <div class="divide-y divide-white/10">
+                    <div v-for="player in gameState.players" :key="player.id" class="grid grid-cols-[1.5fr_1.5fr_auto] px-6 py-4 items-center bg-[#6D28D9]/40 hover:bg-[#6D28D9]/60 transition-colors">
+                        
+                        <!-- Col 1: Avatar + Name -->
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <div class="w-10 h-10 rounded-full shrink-0 flex items-center justify-center border-2 border-white/20 shadow-inner"
+                                 :class="[
+                                     player.id === myUserId ? 'bg-pink-400' : 
+                                     player.name.length % 2 === 0 ? 'bg-green-400' : 'bg-orange-400'
+                                 ]"
+                            >
+                                <span class="text-white font-bold text-lg shadow-sm">{{ player.name.charAt(0).toUpperCase() }}</span>
+                            </div>
+                            <span class="text-white font-bold text-lg truncate">{{ player.name }}</span>
+                        </div>
+
+                        <!-- Col 2: Word -->
+                        <div class="text-white font-bold text-lg truncate px-2">
+                             {{ gameState.answers[player.id]?.[currentCategory] || '-' }}
+                        </div>
+
+                        <!-- Col 3: Toggle -->
+                        <div class="flex justify-end">
+                            <div v-if="player.id === myUserId" class="w-14 h-8 bg-gray-600 rounded-full p-1 opacity-50 cursor-not-allowed">
+                                <div class="w-6 h-6 bg-white rounded-full shadow-md ml-auto"></div>
+                            </div>
+                            <button 
+                                v-else 
+                                @click="toggleVote(player.id, currentCategory)"
+                                class="w-14 h-8 rounded-full p-1 transition-colors duration-300 relative focus:outline-none"
+                                :class="gameState.votes[player.id]?.[currentCategory]?.includes(myUserId) ? 'bg-gray-400' : 'bg-green-500'"
+                            >
+                                <div 
+                                    class="w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-300"
+                                    :class="gameState.votes[player.id]?.[currentCategory]?.includes(myUserId) ? 'translate-x-0' : 'translate-x-6'"
+                                ></div>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Navigation/Confirm -->
+             <div class="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#491B8F] to-transparent flex justify-center pb-10">
+                <button 
+                    v-if="activeCategoryIndex < gameState.categories.length - 1"
+                    @click="nextCategory"
+                    class="w-full max-w-lg bg-white text-[#491B8F] hover:bg-gray-100 font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all text-xl"
+                >
+                    Siguiente
+                </button>
+                <button 
+                    v-else
+                    @click="handleConfirmVotes"
+                    class="w-full max-w-lg bg-green-500 hover:bg-green-400 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all text-xl"
+                    :disabled="hasConfirmed"
+                >
+                    {{ hasConfirmed ? 'Esperando...' : 'Confirmar Votos' }}
+                </button>
             </div>
         </div>
 
