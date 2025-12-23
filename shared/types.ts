@@ -7,6 +7,7 @@ export interface Player {
     isHost: boolean;
     isConnected: boolean;
     lastSeenAt: number;
+    avatar: string;
 }
 
 export interface GameConfig {
@@ -44,7 +45,7 @@ export interface RoomState {
 export type RoundAnswers = Record<string, string>;
 
 export type ClientMessage =
-    | { type: 'JOIN'; payload: { name: string; roomId: string; userId: string } }
+    | { type: 'JOIN'; payload: { name: string; roomId: string; userId: string; avatar: string } }
     | { type: 'START_GAME' }
     | { type: 'STOP_ROUND'; payload: { answers: RoundAnswers } }
     | { type: 'SUBMIT_ANSWERS'; payload: { answers: RoundAnswers } }

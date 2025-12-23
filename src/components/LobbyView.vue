@@ -53,8 +53,8 @@ const handleKick = (targetUserId: string, name: string) => {
                 >
                     <div class="flex items-center gap-3">
                         <div class="relative">
-                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold text-sm">
-                                {{ player.name.charAt(0).toUpperCase() }}
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold text-2xl shadow-inner border border-white/20">
+                                {{ player.avatar || '👤' }}
                             </div>
                             <!-- Online Status Dot -->
                             <div 

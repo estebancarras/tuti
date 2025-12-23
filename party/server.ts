@@ -56,7 +56,9 @@ export default class Room implements Party.Server {
 
             try {
                 if (parsed.type === 'JOIN') {
-                    this.engine.joinPlayer(parsed.payload.userId, parsed.payload.name, sender.id);
+                    // Avatar comes from payload or fallback if missing (though client should send it)
+                    const avatar = parsed.payload.avatar || '👤';
+                    this.engine.joinPlayer(parsed.payload.userId, parsed.payload.name, avatar, sender.id);
                     shouldPersist = true;
                 } else if (parsed.type === 'START_GAME') {
                     this.engine.startGame(sender.id);

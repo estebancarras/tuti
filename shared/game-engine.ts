@@ -71,12 +71,13 @@ export class GameEngine {
         return this.state;
     }
 
-    public joinPlayer(userId: string, name: string, connectionId: string): RoomState {
+    public joinPlayer(userId: string, name: string, avatar: string, connectionId: string): RoomState {
         this.connections.set(connectionId, userId);
 
         const existingPlayer = this.state.players.find(p => p.id === userId);
         if (existingPlayer) {
             existingPlayer.name = name;
+            existingPlayer.avatar = avatar;
             existingPlayer.isConnected = true;
             existingPlayer.lastSeenAt = Date.now();
             return this.state;
@@ -85,6 +86,7 @@ export class GameEngine {
         const newPlayer: Player = {
             id: userId,
             name,
+            avatar,
             score: 0,
             isHost: this.state.players.length === 0, // First player is host
             isConnected: true,

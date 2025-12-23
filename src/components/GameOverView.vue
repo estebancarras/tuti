@@ -41,7 +41,7 @@ const exitGame = () => {
                 <div v-if="top3[1]" class="flex flex-col items-center w-1/3 animate-[slideUp_1s_ease-out_0.2s_both]">
                     <div class="relative mb-2">
                         <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-gray-300 overflow-hidden shadow-[0_0_20px_rgba(209,213,219,0.5)] bg-gray-200 flex items-center justify-center">
-                            <span class="text-2xl sm:text-3xl font-bold text-gray-700">{{ top3[1].name.charAt(0).toUpperCase() }}</span>
+                            <span class="text-4xl sm:text-5xl font-bold text-gray-700">{{ top3[1].avatar || '👤' }}</span>
                         </div>
                         <div class="absolute -top-3 -right-3 bg-gray-300 text-gray-800 font-bold rounded-full w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center shadow">
                             2
@@ -57,7 +57,7 @@ const exitGame = () => {
                 <div v-if="top3[0]" class="flex flex-col items-center w-1/3 z-10 animate-[slideUp_1s_ease-out_both]">
                      <div class="relative mb-4">
                         <div class="w-20 h-20 sm:w-28 sm:h-28 rounded-full border-4 border-yellow-400 overflow-hidden shadow-[0_0_30px_rgba(250,204,21,0.6)] bg-yellow-100 flex items-center justify-center relative">
-                            <span class="text-3xl sm:text-5xl font-bold text-yellow-700">{{ top3[0].name.charAt(0).toUpperCase() }}</span>
+                            <span class="text-5xl sm:text-7xl font-bold text-yellow-700">{{ top3[0].avatar || '👤' }}</span>
                         </div>
                          <div class="absolute -top-6 left-1/2 transform -translate-x-1/2 text-4xl sm:text-5xl filter drop-shadow-lg">
                             👑
@@ -78,7 +78,7 @@ const exitGame = () => {
                 <div v-if="top3[2]" class="flex flex-col items-center w-1/3 animate-[slideUp_1s_ease-out_0.4s_both]">
                     <div class="relative mb-2">
                         <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-orange-400 overflow-hidden shadow-[0_0_20px_rgba(251,146,60,0.5)] bg-orange-200 flex items-center justify-center">
-                            <span class="text-xl sm:text-2xl font-bold text-orange-800">{{ top3[2].name.charAt(0).toUpperCase() }}</span>
+                            <span class="text-3xl sm:text-4xl font-bold text-orange-800">{{ top3[2].avatar || '👤' }}</span>
                         </div>
                          <div class="absolute -top-3 -right-3 bg-orange-400 text-orange-900 font-bold rounded-full w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center shadow">
                             3
@@ -98,6 +98,7 @@ const exitGame = () => {
                     <div v-for="(player, idx) in rest" :key="player.id" class="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
                         <div class="flex items-center gap-3">
                             <span class="text-gray-400 font-mono text-sm">#{{ idx + 4 }}</span>
+                            <span class="text-xl">{{ player.avatar || '👤' }}</span>
                             <span class="text-white">{{ player.name }}</span>
                         </div>
                         <span class="text-white font-bold">{{ player.score }} pts</span>

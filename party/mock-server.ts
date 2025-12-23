@@ -288,7 +288,8 @@ wss.on('connection', (ws, req) => {
             const engine = getOrCreateRoom(roomId);
 
             if (message.type === 'JOIN') {
-                engine.joinPlayer(message.payload.userId, message.payload.name, connectionId);
+                const avatar = message.payload.avatar || '👤';
+                engine.joinPlayer(message.payload.userId, message.payload.name, avatar, connectionId);
             } else if (message.type === 'START_GAME') {
                 engine.startGame(connectionId);
             } else if (message.type === 'STOP_ROUND') {

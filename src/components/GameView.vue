@@ -2,7 +2,7 @@
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { useGame } from '../composables/useGame';
 
-const { gameState, stopRound, submitAnswers, debouncedUpdateAnswers, shouldSubmit, toggleVote, confirmVotes, myUserId } = useGame();
+const { gameState, stopRound, submitAnswers, debouncedUpdateAnswers, shouldSubmit, toggleVote, confirmVotes, myUserId, amIHost, startGame } = useGame();
 
 const answers = ref<Record<string, string>>({});
 const hasConfirmed = ref(false);
@@ -217,13 +217,13 @@ const handleInput = (category: string, event: Event) => {
                         <div class="divide-y divide-white/10">
                             <div v-for="player in gameState.players" :key="player.id" class="grid grid-cols-[1.5fr_1.5fr_auto] px-4 py-3 items-center bg-[#6D28D9]/40 hover:bg-[#6D28D9]/60 transition-colors">
                                 <div class="flex items-center gap-2 overflow-hidden">
-                                    <div class="w-8 h-8 rounded-full shrink-0 flex items-center justify-center border border-white/20 shadow-inner"
+                                    <div class="w-10 h-10 rounded-full shrink-0 flex items-center justify-center border border-white/20 shadow-inner"
                                          :class="[
                                              player.id === myUserId ? 'bg-pink-400' : 
                                              player.name.length % 2 === 0 ? 'bg-green-400' : 'bg-orange-400'
                                          ]"
                                     >
-                                        <span class="text-white font-bold text-sm shadow-sm">{{ player.name.charAt(0).toUpperCase() }}</span>
+                                        <span class="text-white font-bold text-2xl shadow-sm">{{ player.avatar || '👤' }}</span>
                                     </div>
                                     <span class="text-white font-bold text-sm truncate">{{ player.name }}</span>
                                 </div>
@@ -255,12 +255,13 @@ const handleInput = (category: string, event: Event) => {
 
                 <!-- === RESULTS STATE === -->
                 <div v-else-if="gameState.status === 'RESULTS'" class="max-w-3xl mx-auto bg-black/40 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/10 flex flex-col items-center">
-                    <h2 class="text-3xl font-black text-white mb-4 drop-shadow-md">Resultados Ronda {{ gameState.roundsPlayed }}</h2>
+                    <h2 class="text-3xl font-black text-white mb-4 drop-shadow-md">Resultados Ronda {{ gameState.roundsPlayed + 1 }}</h2>
                      <div class="w-full space-y-3">
                          <div v-for="player in gameState.players" :key="player.id" class="bg-white/5 rounded-xl p-3 flex items-center justify-between border border-white/5">
                              <div class="flex items-center gap-3">
                                  <div class="text-2xl font-bold text-yellow-400 w-8 text-center">{{ player.score }}</div>
                                  <div class="w-px h-8 bg-white/10"></div>
+                                 <div class="text-2xl">{{ player.avatar || '👤' }}</div>
                                  <span class="text-white font-bold text-lg">{{ player.name }}</span>
                              </div>
                              <span v-if="player.isHost" class="text-xs uppercase bg-purple-500 text-white px-2 py-1 rounded">Host</span>
@@ -301,8 +302,17 @@ const handleInput = (category: string, event: Event) => {
             </div>
 
             <!-- RESULTS ACTION -->
-            <div v-else-if="gameState.status === 'RESULTS'" class="w-full text-center text-white/50 text-sm">
-                Esperando al anfitrión...
+            <div v-else-if="gameState.status === 'RESULTS'" class="w-full text-center">
+                <button 
+                    v-if="amIHost"
+                    @click="startGame"
+                    class="w-full max-w-md px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xl rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-3"
+                >
+                    Siguiente Ronda ➡️
+                </button>
+                <div v-else class="text-white/50 text-sm">
+                    Esperando al anfitrión...
+                </div>
             </div>
         </div>
     </div>

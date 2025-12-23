@@ -74,7 +74,7 @@ export function useGame() {
         return me?.isHost || false;
     });
 
-    const joinGame = async (name: string, roomId: string) => {
+    const joinGame = async (name: string, roomId: string, avatar: string) => {
         // 1. Connect to the specific room
         setRoomId(roomId);
 
@@ -104,7 +104,7 @@ export function useGame() {
 
         const message = {
             type: 'JOIN',
-            payload: { name, roomId, userId }
+            payload: { name, roomId, userId, avatar }
         };
 
         socket.value.send(JSON.stringify(message));
