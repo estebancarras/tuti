@@ -9,7 +9,7 @@ const isConnected = ref(false);
 const lastMessage = ref<string>('');
 
 export function useSocket() {
-    const setRoomId = (roomId: string) => {
+    const setRoomId = (roomId: string | null) => {
         // 1. Close existing connection if any
         if (socket.value) {
             console.log('🔌 Switching rooms... Closing old connection.');
@@ -17,6 +17,8 @@ export function useSocket() {
             socket.value = null;
             isConnected.value = false;
         }
+
+        if (!roomId) return;
 
         // 2. Create new connection
         console.log(`🔌 Connecting to room: ${roomId} on host: ${PARTYKIT_HOST}`);

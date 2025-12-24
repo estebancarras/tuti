@@ -202,6 +202,45 @@ export function useGame() {
         }));
     };
 
+    const leaveGame = () => {
+        // 1. Clear State
+        setRoomId(null);
+        gameState.value = {
+            status: 'LOBBY',
+            players: [],
+            roomId: null,
+            currentLetter: null,
+            categories: [],
+            answers: {},
+            answerStatuses: {},
+            roundsPlayed: 0,
+            votes: {},
+            whoFinishedVoting: [],
+            roundScores: {},
+            config: {
+                roundDuration: 60,
+                votingDuration: 45,
+                categoriesCount: 5,
+                totalRounds: 5
+            },
+            timers: {
+                roundEndsAt: null,
+                votingEndsAt: null,
+                resultsEndsAt: null
+            },
+            stoppedBy: null
+        };
+
+        // 2. Clear URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('room');
+        window.history.pushState({}, '', url);
+
+        // 3. Close connection? 
+        // useSocket handles connection based on roomId. If we setRoomId(null), it might disconnect if logic allows.
+        // For now, setting roomId to null in state is enough for the UI to switch.
+    };
+
     return {
         gameState,
         joinGame,
@@ -229,6 +268,7 @@ export function useGame() {
                 return true;
             }
             return false;
-        }
+        },
+        leaveGame
     };
 }

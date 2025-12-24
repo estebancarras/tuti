@@ -2,7 +2,7 @@
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { useGame } from '../composables/useGame';
 
-const { gameState, stopRound, submitAnswers, debouncedUpdateAnswers, shouldSubmit, toggleVote, confirmVotes, myUserId, amIHost, startGame } = useGame();
+const { gameState, stopRound, submitAnswers, debouncedUpdateAnswers, shouldSubmit, toggleVote, confirmVotes, myUserId, amIHost, startGame, leaveGame } = useGame();
 
 const answers = ref<Record<string, string>>({});
 const hasConfirmed = ref(false);
@@ -164,14 +164,38 @@ const rivalsActivity = computed(() => {
             };
         });
 });
+
+// --- Hydration ---
+const hydrateLocalState = () => {
+    if (!myUserId.value) return;
+    const myServerAnswers = gameState.value.answers[myUserId.value];
+    if (myServerAnswers) {
+        console.log('💧 Hydrating local state with server answers');
+        // Merge with existing to avoid overwriting current typing if any
+        answers.value = { ...answers.value, ...myServerAnswers };
+    }
+};
+
+watch(() => gameState.value.roomId, (newRoomId) => {
+    if (newRoomId) {
+        hydrateLocalState();
+    }
+}, { immediate: true });
+
+// --- Navigation ---
+const handleExit = () => {
+    leaveGame();
+    // App.vue will handle view swithing based on status change to LOBBY/HOME
+};
 </script>
 
 <template>
     <div class="h-full flex flex-col w-full max-w-7xl mx-auto">
         <!-- HEADER (HUD) - Fixed -->
-        <div class="flex-none flex items-center justify-between bg-black/30 backdrop-blur-md rounded-2xl p-3 border border-white/10 mb-4 shadow-lg shrink-0">
+        <!-- HEADER (HUD) - Fixed -->
+        <div class="flex-none grid grid-cols-[1fr_auto_1fr] items-center bg-black/30 backdrop-blur-md rounded-2xl p-3 border border-white/10 mb-4 shadow-lg shrink-0 gap-4">
             <!-- Left: Round & Letter -->
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-4 justify-self-start">
                 <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-3 text-white text-center shadow-lg border border-white/20 min-w-[80px]">
                     <p class="text-[10px] uppercase font-bold tracking-widest text-indigo-200">Ronda</p>
                     <p class="text-2xl font-black leading-none">{{ gameState.roundsPlayed + 1 }}<span class="text-xs opacity-50">/{{ gameState.config?.totalRounds || 5 }}</span></p>
@@ -186,7 +210,7 @@ const rivalsActivity = computed(() => {
             </div>
 
             <!-- Center: Status Actions (Timer) -->
-             <div class="flex flex-col items-center">
+             <div class="flex flex-col items-center justify-self-center">
                  <!-- Timer Display -->
                  <div v-if="timeRemaining !== null" class="text-center">
                      <p :class="['text-4xl md:text-5xl font-black tabular-nums drop-shadow-md leading-none', timerColor]">
@@ -198,7 +222,17 @@ const rivalsActivity = computed(() => {
                  <p v-else-if="gameState.status === 'RESULTS'" class="text-green-400 text-sm font-bold mt-1">RESULTADOS</p>
             </div>
 
-            <div class="w-10"></div> <!-- Spacer -->
+            <!-- Right: Exit Button -->
+            <div class="justify-self-end">
+                <button 
+                    @click="handleExit" 
+                    class="w-10 h-10 rounded-full bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white flex items-center justify-center transition-all"
+                    title="Salir de la partida"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"></path></svg>
+                </button>
+            </div>
+
         </div>
 
         <!-- BODY (Scrollable Content) -->
@@ -261,12 +295,12 @@ const rivalsActivity = computed(() => {
                     <!-- STOP ALERT OVERLAY -->
                     <div v-if="showStopAlert && stopperPlayer" class="absolute inset-0 z-50 flex items-center justify-center bg-red-600/90 backdrop-blur-md rounded-2xl animate-in fade-in zoom-in duration-300">
                         <div class="text-center p-6 animate-bounce">
-                            <div class="text-8xl mb-4 drop-shadow-xl">{{ stopperPlayer.avatar || '🛑' }}</div>
+                            <div class="text-8xl mb-4 drop-shadow-xl">{{ stopperPlayer?.avatar || '🛑' }}</div>
                             <h2 class="text-4xl font-black text-white uppercase tracking-tighter drop-shadow-md">
                                 ¡BASTA!
                             </h2>
                             <p class="text-white/90 text-xl font-bold mt-2 bg-black/20 px-4 py-1 rounded-full inline-block">
-                                por {{ stopperPlayer.name }}
+                                por {{ stopperPlayer?.name }}
                             </p>
                         </div>
                     </div>
