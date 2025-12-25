@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { useGame } from '../composables/useGame';
+import { useSound } from '../composables/useSound';
 
 const { gameState, stopRound, submitAnswers, debouncedUpdateAnswers, shouldSubmit, toggleVote, confirmVotes, myUserId, amIHost, startGame, leaveGame } = useGame();
+const { playClick, playJoin, playTick, playAlarm, playSuccess } = useSound();
 
 const answers = ref<Record<string, string>>({});
 const hasConfirmed = ref(false);
@@ -26,6 +28,11 @@ const updateTimer = () => {
     if (targetTime) {
         const remaining = Math.max(0, Math.ceil((targetTime - now) / 1000));
         timeRemaining.value = remaining;
+        
+        // Tick Sound
+        if (remaining <= 10 && remaining > 0) {
+            playTick();
+        }
     } else {
         timeRemaining.value = null;
     }
@@ -58,6 +65,7 @@ const timerColor = computed(() => {
 
 const handleStop = () => {
     stopRound(answers.value);
+    playAlarm();
 };
 
 // Carousel Logic for Review Phase
@@ -81,6 +89,7 @@ const prevCategory = () => {
 const handleConfirmVotes = () => {
     confirmVotes();
     hasConfirmed.value = true;
+    playClick();
 };
 
 // Check if we need to auto-submit answers (transition from PLAYING to REVIEW by someone else)
@@ -134,10 +143,13 @@ const stopperPlayer = computed(() => {
 watch(() => gameState.value.status, (newStatus, oldStatus) => {
     if (newStatus === 'REVIEW' && oldStatus === 'PLAYING') {
         showStopAlert.value = true;
+        playAlarm();
         // Hide after 3 seconds
         setTimeout(() => {
             showStopAlert.value = false;
         }, 3000);
+    } else if (newStatus === 'RESULTS') {
+        playSuccess();
     } else if (newStatus !== 'REVIEW') {
         showStopAlert.value = false;
     }
@@ -192,6 +204,18 @@ const handleExit = () => {
     leaveGame();
     showExitModal.value = false;
 };
+
+// --- Connection Sounds ---
+watch(() => gameState.value.players.length, (newCount, oldCount) => {
+    if (newCount > oldCount && gameState.value.status !== 'LOBBY') {
+        // We already have lobby sounds, but if someone joins mid-game (reconnect) or generally
+        // Actually GameView is only active during GAME. 
+        // Note: players array might change on connect/disconnect.
+        // Let's rely on the Toast logic to trigger sound? 
+        // Or simpler: just watcher here.
+        playJoin();
+    }
+});
 
 // --- Toasts (Session Notifications) ---
 interface Toast {

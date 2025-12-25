@@ -1,10 +1,49 @@
 import { RoomState, Player, GameConfig } from './types.js';
 import { RoundAnswersSchema } from './schemas.js';
 
-const MASTER_CATEGORIES = [
-    'Nombre', 'Apellido', 'País', 'Ciudad', 'Animal', 'Color', 'Fruta/Verdura',
-    'Cosa', 'Profesión', 'Marca', 'Película', 'Canción', 'Comida', 'Deporte',
-    'Famoso', 'Serie de TV', 'Parte del Cuerpo', 'Instrumento Musical'
+export const MASTER_CATEGORIES = [
+    // Clásicos
+    'Nombre', 'Apellido', 'País', 'Ciudad', 'Animal', 'Color', 'Fruta/Verdura', 'Cosa', 'Profesión',
+    'Marca', 'Película', 'Canción', 'Comida', 'Deporte', 'Famoso', 'Serie de TV', 'Parte del Cuerpo',
+    'Instrumento Musical', 'Ropa/Accesorio', 'Medio de Transporte', 'Verbo',
+
+    // Geografía y Cultura
+    'Capital', 'Río/Lago', 'Idioma', 'Moneda', 'Plato Típico', 'Fiesta/Celebración', 'Gentilicio', 'Lugar Turístico',
+
+    // Entretenimiento
+    'Actor/Actriz', 'Cantante/Banda', 'Personaje Ficticio', 'Videojuego', 'Libro', 'Dibujo Animado', 'Superhéroe',
+    'Villano', 'Youtuber/Streamer', 'Red Social', 'App Móvil', 'Juego de Mesa', 'Director de Cine',
+
+    // Naturaleza
+    'Flor', 'Árbol', 'Raza de Perro', 'Insecto', 'Animal Marino', 'Ave', 'Elemento Químico', 'Fenómeno Natural', 'Mineral/Piedra',
+
+    // Cotidiano
+    'Objeto de Cocina', 'Objeto de Baño', 'Objeto de Oficina', 'Herramienta', 'Electrodoméstico', 'Mueble', 'Juguete',
+    'Bebida', 'Postre', 'Sabor de Helado', 'Ingrediente de Pizza', 'Frase de Madre', 'Excusa para llegar tarde',
+    'Cosa que se rompe', 'Cosa que se pierde', 'Regalo de cumpleaños', 'Cosa que huele bien', 'Cosa que huele mal',
+
+    // Abstracto y Creativo
+    'Sentimiento/Emoción', 'Adjetivo', 'Palabra en Inglés', 'Palabra con tilde', 'Palabra larga', 'Palabra de 4 letras',
+    'Insulto (suave)', 'Apodo', 'Nombre de Mascota', 'Hobby', 'Miedo/Fobia', 'Deseo', 'Pecado Capital',
+
+    // Específicos
+    'Marca de Auto', 'Marca de Ropa', 'Marca de Tecnología', 'Marca de Comida', 'Canal de TV', 'Equipo de Fútbol',
+    'Deportista', 'Político', 'Personaje Histórico', 'Carrera Universitaria', 'Asignatura Escolar', 'Parte del Auto',
+    'Parte de la Casa', 'Material de Construcción', 'Instrumento Quirúrgico', 'Arma', 'Monstruo', 'Dios Mitológico',
+
+    // Situacional
+    'Lo encuentras en la playa', 'Lo encuentras en la basura', 'Lo encuentras en un bolso', 'Se compra en farmacia',
+    'Se compra en ferretería', 'Se ve en el cielo', 'Se lleva puesto', 'Hace ruido', 'Es pegajoso', 'Es redondo',
+    'Es verde', 'Es rojo', 'Es frío', 'Es caliente', 'Es líquido', 'Es caro', 'Es barato',
+
+    // Random Divertido
+    'Nombre de Abuela', 'Cosa de millonarios', 'Cosa de pobres', 'Motivo de divorcio', 'Crimen', 'Castigo',
+    'Título de Canción de Reggaeton', 'Nombre de Telenovela', 'Sabor de Pizza', 'Topping de Pizza', 'Tipo de Pasta',
+    'Tipo de Queso', 'Marca de Cerveza', 'Coctel/Trago', 'Golosina', 'Chocolate', 'Galleta',
+
+    // Tech & Modern
+    'Lenguaje de Programación', 'Criptomoneda', 'Meme famoso', 'Emoji', 'Hashtag', 'Software', 'Gadget',
+    'Sitio Web', 'Virus', 'Término Tecnológico'
 ];
 
 export class GameEngine {
@@ -31,7 +70,9 @@ export class GameEngine {
                 roundDuration: 60, // 60 seconds default
                 votingDuration: 45, // 45 seconds default
                 categoriesCount: 5,   // 5 categories default
-                totalRounds: 5       // 5 rounds default
+                totalRounds: 5,       // 5 rounds default
+                mode: 'RANDOM',
+                selectedCategories: []
             },
             timers: {
                 roundEndsAt: null,
@@ -66,8 +107,16 @@ export class GameEngine {
             // But we could refresh current categories list for UI feedback if we wanted.
 
             // Validate limits just in case (though schemas handle input validation usually)
-            if (this.state.config.categoriesCount < 4) this.state.config.categoriesCount = 4;
-            if (this.state.config.categoriesCount > 8) this.state.config.categoriesCount = 8;
+            if (this.state.config.categoriesCount < 1) this.state.config.categoriesCount = 1;
+            if (this.state.config.categoriesCount > 10) this.state.config.categoriesCount = 10;
+
+            // Validate Manual Config
+            if (this.state.config.mode === 'MANUAL') {
+                // Ensure selectedCategories respects the count limit logic or overrides it?
+                // Let's stick to: count is derived from length in manual mode usually, OR we enforce selection matches count.
+                // Easier: In manual mode, keys are keys.
+                // We won't auto-truncate here, but we will check length at start.
+            }
         }
         return this.state;
     }
@@ -188,9 +237,14 @@ export class GameEngine {
                 this.state.status = 'PLAYING';
                 this.state.currentLetter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(Math.floor(Math.random() * 26));
 
-                // Select random categories
-                const shuffled = [...MASTER_CATEGORIES].sort(() => 0.5 - Math.random());
-                this.state.categories = shuffled.slice(0, this.state.config.categoriesCount);
+                // Select categories based on mode
+                if (this.state.config.mode === 'MANUAL' && this.state.config.selectedCategories.length >= 3) {
+                    this.state.categories = [...this.state.config.selectedCategories];
+                } else {
+                    // RANDOM MODE (or fallback if manual is empty)
+                    const shuffled = [...MASTER_CATEGORIES].sort(() => 0.5 - Math.random());
+                    this.state.categories = shuffled.slice(0, this.state.config.categoriesCount);
+                }
 
                 this.state.answers = {}; // Reset answers for new round
                 // Reset Voting System
@@ -449,9 +503,16 @@ export class GameEngine {
         const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         this.state.currentLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
 
-        // Rotate categories randomly for variety
-        const shuffled = [...MASTER_CATEGORIES].sort(() => 0.5 - Math.random());
-        this.state.categories = shuffled.slice(0, this.state.config.categoriesCount);
+        // Rotate categories randomly for variety or keep manual
+        if (this.state.config.mode === 'MANUAL' && this.state.config.selectedCategories.length >= 3) {
+            this.state.categories = [...this.state.config.selectedCategories];
+            // In manual mode, we usually keep the SAME categories every round? Or shuffle them?
+            // "Tutti Frutti" usually means same categories, different letter.
+            // So we just keep them.
+        } else {
+            const shuffled = [...MASTER_CATEGORIES].sort(() => 0.5 - Math.random());
+            this.state.categories = shuffled.slice(0, this.state.config.categoriesCount);
+        }
 
         this.state.status = 'PLAYING';
 
