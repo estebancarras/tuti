@@ -299,9 +299,10 @@ const handleInputFocus = (event: Event) => {
 </script>
 
 <template>
-    <div class="h-full flex flex-col w-full max-w-7xl mx-auto">
-        <!-- HEADER (HUD) - Fixed -->
-        <!-- HEADER (HUD) - Fixed -->
+    <div class="h-[100dvh] w-full flex flex-col overflow-hidden relative bg-gradient-to-b from-[#2e1065] to-[#4c1d95]">
+        <!-- HEADER (HUD) -->
+        <div class="flex-none w-full max-w-7xl mx-auto px-4 pt-4 z-10">
+
         <div class="flex-none grid grid-cols-[1fr_auto_1fr] items-center bg-black/30 backdrop-blur-md rounded-2xl p-3 border border-white/10 mb-4 shadow-lg shrink-0 gap-4">
             <!-- Left: Round & Letter -->
             <div class="flex items-center gap-4 justify-self-start">
@@ -343,13 +344,14 @@ const handleInputFocus = (event: Event) => {
             </div>
 
         </div>
+        </div>
 
         <!-- BODY (Scrollable Content) -->
-        <div class="flex-1 overflow-y-auto min-h-0 relative rounded-2xl bg-black/20 border border-white/5 backdrop-blur-sm scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-            <div class="p-4">
+        <div class="flex-1 overflow-y-auto scroll-smooth w-full">
+            <div class="w-full max-w-7xl mx-auto p-4 pb-48">
                 
                 <!-- === PLAYING STATE === -->
-                <div v-if="gameState.status === 'PLAYING'" class="flex flex-col gap-4">
+                <div v-if="gameState.status === 'PLAYING'" class="flex flex-col gap-6">
                     
                     <!-- RIVALS HUD -->
                     <div v-if="rivalsActivity.length > 0" class="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -375,7 +377,7 @@ const handleInputFocus = (event: Event) => {
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-32">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div 
                             v-for="category in gameState.categories" 
                             :key="category"
@@ -408,24 +410,6 @@ const handleInputFocus = (event: Event) => {
                              </div>
                         </div>
                     </div> <!-- End Grid -->
-
-                    <!-- FLOAT BASTA BUTTON -->
-                    <div class="fixed bottom-8 inset-x-0 px-6 flex justify-center z-30 pointer-events-none">
-                        <button 
-                            @click="handleStop"
-                            :disabled="!canStopRound"
-                            class="pointer-events-auto relative group overflow-hidden bg-gradient-to-r from-pink-600 to-orange-500 text-white font-black text-2xl py-5 px-16 rounded-full shadow-[0_10px_40px_rgba(236,72,153,0.4)] border-4 border-white/10 uppercase tracking-widest transform transition-all duration-500 flex items-center gap-4 hover:scale-105 active:scale-95 hover:shadow-[0_20px_60px_rgba(236,72,153,0.6)] hover:border-white/30"
-                            :class="[
-                                canStopRound ? 'animate-pulse ring-4 ring-pink-500/30' : 'opacity-50 grayscale cursor-not-allowed shadow-none transform-none'
-                            ]"
-                        >
-                            <span class="text-3xl filter drop-shadow-md group-hover:rotate-12 transition-transform duration-300">✋</span>
-                            <span class="drop-shadow-md">¡BASTA!</span>
-                            
-                            <!-- Shine Effect -->
-                            <div v-if="canStopRound" class="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12"></div>
-                        </button>
-                    </div>
                 </div> <!-- End Playing Wrapper -->
 
                 <!-- === REVIEW STATE (VOTING MOCKUP) === -->
@@ -530,41 +514,55 @@ const handleInputFocus = (event: Event) => {
             </div>
         </div>
 
-        <!-- FOOTER (Actions) - Fixed at bottom -->
-        <div class="flex-none p-4 flex justify-center bg-black/20 backdrop-blur-sm border-t border-white/5 z-20">
-             <!-- PLAYING ACTION (Moved to Floating Button) -->
+        <!-- FOOTER / ACTIONS (Absolute & Safe) -->
+        <div class="absolute bottom-0 inset-x-0 z-30 pointer-events-none bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-32 pb-8 flex justify-center">
+            
+            <!-- PLAYING: BASTA BUTTON -->
+            <button 
+                v-if="gameState.status === 'PLAYING'"
+                @click="handleStop"
+                class="pointer-events-auto relative group overflow-hidden bg-gradient-to-r from-pink-600 to-orange-500 text-white font-black text-2xl py-5 px-16 rounded-full shadow-[0_10px_40px_rgba(236,72,153,0.4)] border-4 border-white/10 uppercase tracking-widest transform transition-all duration-500 flex items-center gap-4 hover:scale-105 active:scale-95 hover:shadow-[0_20px_60px_rgba(236,72,153,0.6)] hover:border-white/30 mx-4"
+                :class="[
+                    canStopRound ? 'animate-pulse ring-4 ring-pink-500/30' : 'opacity-50 grayscale cursor-not-allowed shadow-none transform-none'
+                ]"
+            >
+                <span class="text-3xl filter drop-shadow-md group-hover:rotate-12 transition-transform duration-300">✋</span>
+                <span class="drop-shadow-md">¡BASTA!</span>
+                
+                <!-- Shine Effect -->
+                <div v-if="canStopRound" class="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12"></div>
+            </button>
 
-
-            <!-- REVIEW ACTION -->
-            <div v-if="gameState.status === 'REVIEW'" class="w-full max-w-lg"> 
+            <!-- REVIEW ACTIONS -->
+            <div v-if="gameState.status === 'REVIEW'" class="w-full max-w-lg pointer-events-auto px-4"> 
                 <button 
                     v-if="activeCategoryIndex < gameState.categories.length - 1"
                     @click="nextCategory"
-                    class="w-full py-3 bg-white text-[#491B8F] font-bold rounded-xl shadow-lg active:scale-95 transition-all text-lg"
+                    class="w-full py-4 bg-white text-[#491B8F] font-bold rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.3)] active:scale-95 transition-all text-xl"
                 >
                     Siguiente Categoría
                 </button>
                 <button 
                     v-else
                     @click="handleConfirmVotes"
-                    class="w-full py-3 bg-green-500 hover:bg-green-400 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all text-lg"
+                    class="w-full py-4 bg-green-500 hover:bg-green-400 text-white font-bold rounded-xl shadow-[0_10px_30px_rgba(34,197,94,0.4)] active:scale-95 transition-all text-xl"
                     :disabled="hasConfirmed"
                 >
                     {{ hasConfirmed ? 'Esperando...' : 'Confirmar Votos ✅' }}
                 </button>
             </div>
 
-            <!-- RESULTS ACTION -->
-            <div v-else-if="gameState.status === 'RESULTS'" class="w-full text-center">
+            <!-- RESULTS ACTIONS -->
+            <div v-else-if="gameState.status === 'RESULTS'" class="w-full max-w-md pointer-events-auto px-4">
                 <button 
                     v-if="amIHost"
                     @click="startGame"
-                    class="w-full max-w-md px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xl rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-3"
+                    class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xl rounded-xl transition-all shadow-[0_10px_30px_rgba(79,70,229,0.4)] active:scale-95 flex items-center justify-center gap-3"
                 >
                     Siguiente Ronda ➡️
                 </button>
-                <div v-else class="text-white/50 text-sm">
-                    Esperando al anfitrión...
+                <div v-else class="text-white/70 font-bold bg-black/40 backdrop-blur-md px-6 py-3 rounded-full text-center border border-white/10">
+                    Esperando al anfitrión... ⏳
                 </div>
             </div>
         </div>
