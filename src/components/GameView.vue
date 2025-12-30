@@ -3,6 +3,8 @@ import { ref, watch, computed, onUnmounted } from 'vue';
 import { useGame } from '../composables/useGame';
 import { useSound } from '../composables/useSound';
 
+import { useSmartReview } from '../composables/useSmartReview';
+
 const { gameState, stopRound, submitAnswers, debouncedUpdateAnswers, shouldSubmit, toggleVote, confirmVotes, myUserId, amIHost, startGame, leaveGame } = useGame();
 const { playClick, playJoin, playTick, playAlarm, playSuccess } = useSound();
 
@@ -100,6 +102,11 @@ const activeCategoryIndex = ref(0);
 const currentCategory = computed(() => {
     return gameState.value.categories[activeCategoryIndex.value] || '';
 });
+
+const { getPlayerStatus } = useSmartReview(gameState, currentCategory);
+
+// Helper for UI
+const getReviewItem = (playerId: string) => getPlayerStatus(playerId);
 
 const nextCategory = () => {
     if (activeCategoryIndex.value < gameState.value.categories.length - 1) {
@@ -483,9 +490,16 @@ const handleInputFocus = (event: Event) => {
                             <span class="w-12"></span>
                         </div>
 
-                        <!-- Rows -->
+                                <!-- Rows -->
                         <div class="divide-y divide-white/10">
-                            <div v-for="player in gameState.players" :key="player.id" class="grid grid-cols-[1.5fr_1.5fr_auto] px-4 py-3 items-center bg-[#6D28D9]/40 hover:bg-[#6D28D9]/60 transition-colors">
+                            <div v-for="player in gameState.players" :key="player.id" class="grid grid-cols-[1.5fr_1.5fr_auto] px-4 py-3 items-center transition-colors duration-300"
+                                :class="{
+                                    'bg-green-500/10 border-l-4 border-l-green-500': getReviewItem(player.id).state === 'VALID',
+                                    'bg-yellow-500/10 border-l-4 border-l-yellow-500': getReviewItem(player.id).state === 'DUPLICATE',
+                                    'bg-red-500/10 border-l-4 border-l-red-500': getReviewItem(player.id).state === 'REJECTED',
+                                    'opacity-50': getReviewItem(player.id).state === 'EMPTY'
+                                }"
+                            >
                                 <div class="flex items-center gap-2 overflow-hidden">
                                     <div class="w-10 h-10 rounded-full shrink-0 flex items-center justify-center border border-white/20 shadow-inner"
                                          :class="[
@@ -498,24 +512,43 @@ const handleInputFocus = (event: Event) => {
                                     <span class="text-white font-bold text-sm truncate">{{ player.name }}</span>
                                 </div>
 
-                                <div class="text-white font-bold text-base truncate px-2">
-                                     {{ gameState.answers[player.id]?.[currentCategory] || '-' }}
+                                <div class="flex items-center gap-2 px-2 overflow-hidden">
+                                    <span class="text-white font-bold text-base truncate"
+                                          :class="{'line-through text-white/50Decoration-red-500 decoration-2': getReviewItem(player.id).state === 'REJECTED'}"
+                                    >
+                                         {{ getReviewItem(player.id).answer || '-' }}
+                                    </span>
+                                    
+                                    <!-- LIVE SCORE BADGE -->
+                                    <div class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ml-auto shrink-0"
+                                         :class="{
+                                             'bg-green-400 text-green-900': getReviewItem(player.id).state === 'VALID',
+                                             'bg-yellow-400 text-yellow-900': getReviewItem(player.id).state === 'DUPLICATE',
+                                             'bg-red-500 text-white': getReviewItem(player.id).state === 'REJECTED'
+                                         }"
+                                    >
+                                        {{ getReviewItem(player.id).score }}pts
+                                    </div>
                                 </div>
 
-                                <div class="flex justify-end">
-                                    <div v-if="player.id === myUserId" class="w-12 h-6 bg-gray-600 rounded-full p-1 opacity-50 cursor-not-allowed flex items-center">
-                                        <div class="w-4 h-4 bg-white rounded-full shadow-md ml-auto"></div>
+                                <div class="flex justify-end items-center gap-3">
+                                    <!-- VOTE COUNTER (Only show if votes exists) -->
+                                    <span v-if="getReviewItem(player.id).voteCount > 0" class="text-xs font-black text-red-400 animate-in fade-in zoom-in">
+                                        {{ getReviewItem(player.id).voteCount }} 👎
+                                    </span>
+
+                                    <div v-if="player.id === myUserId" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center opacity-30 cursor-not-allowed">
+                                        🔒
                                     </div>
                                     <button 
                                         v-else 
                                         @click="toggleVote(player.id, currentCategory)"
-                                        class="w-12 h-6 rounded-full p-0.5 transition-colors duration-300 relative focus:outline-none flex items-center"
-                                        :class="gameState.votes[player.id]?.[currentCategory]?.includes(myUserId) ? 'bg-gray-400' : 'bg-green-500'"
+                                        class="w-10 h-10 rounded-full transition-all duration-200 flex items-center justify-center hover:scale-110 active:scale-95 shadow-lg border-2"
+                                        :class="gameState.votes[player.id]?.[currentCategory]?.includes(myUserId) 
+                                            ? 'bg-red-500 border-red-400 text-white shadow-red-500/50' 
+                                            : 'bg-white/5 border-white/20 text-white/30 hover:bg-red-500/20 hover:border-red-400/50 hover:text-red-300'"
                                     >
-                                        <div 
-                                            class="w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300"
-                                            :class="gameState.votes[player.id]?.[currentCategory]?.includes(myUserId) ? 'translate-x-0' : 'translate-x-6'"
-                                        ></div>
+                                        <span class="text-xl">👎</span>
                                     </button>
                                 </div>
                             </div>

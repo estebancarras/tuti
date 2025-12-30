@@ -18,7 +18,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     { id: '7', name: 'Fruta/Verdura', tags: ['CLASICO', 'NATURALEZA'] },
     { id: '8', name: 'Cosa', tags: ['CLASICO', 'FACIL'] },
     { id: '9', name: 'Profesión', tags: ['CLASICO', 'SOCIEDAD'] },
-    
+
     // ENTERTAINMENT
     { id: '10', name: 'Película', tags: ['CINE', 'FUN'] },
     { id: '11', name: 'Serie de TV', tags: ['CINE', 'FUN'] },
@@ -28,13 +28,13 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     { id: '15', name: 'Personaje Ficticio', tags: ['CINE', 'FUN'] },
     { id: '16', name: 'Videojuego', tags: ['GAMING', 'FUN'] },
     { id: '17', name: 'Youtuber/Streamer', tags: ['INTERNET', 'MODERNO'] },
-    
+
     // MUSIC
     { id: '20', name: 'Canción', tags: ['MUSICA', 'ARTE'] },
     { id: '21', name: 'Cantante/Banda', tags: ['MUSICA', 'FAMOSO'] },
     { id: '22', name: 'Instrumento Musical', tags: ['MUSICA', 'OBJETO'] },
     { id: '23', name: 'Título de Canción de Reggaeton', tags: ['MUSICA', 'FUN', 'HARD'] },
-    
+
     // BRANDS & TECH
     { id: '30', name: 'Marca', tags: ['MARCAS', 'CONSUMO'] },
     { id: '31', name: 'Marca de Auto', tags: ['MARCAS', 'VEHICULO'] },
@@ -42,7 +42,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     { id: '33', name: 'Marca de Tecnología', tags: ['MARCAS', 'TECH'] },
     { id: '34', name: 'App Móvil', tags: ['TECH', 'MODERNO'] },
     { id: '35', name: 'Sitio Web', tags: ['TECH', 'INTERNET'] },
-    
+
     // FOOD
     { id: '40', name: 'Comida', tags: ['COMIDA', 'FACIL'] },
     { id: '41', name: 'Bebida', tags: ['COMIDA'] },
@@ -50,14 +50,14 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     { id: '43', name: 'Sabor de Helado', tags: ['COMIDA', 'DULCE'] },
     { id: '44', name: 'Ingrediente de Pizza', tags: ['COMIDA'] },
     { id: '45', name: 'Plato Típico', tags: ['COMIDA', 'CULTURA'] },
-    
+
     // GEO & CULTURE
     { id: '50', name: 'Capital', tags: ['GEO', 'HARD'] },
     { id: '51', name: 'Río/Lago', tags: ['GEO', 'NATURALEZA'] },
     { id: '52', name: 'Idioma', tags: ['CULTURA'] },
     { id: '53', name: 'Moneda', tags: ['CULTURA', 'ECONOMIA'] },
     { id: '54', name: 'Lugar Turístico', tags: ['GEO', 'VIAJES'] },
-    
+
     // RANDOM & FUN
     { id: '60', name: 'Insulto (suave)', tags: ['FUN', 'SOCIAL'] },
     { id: '61', name: 'Excusa para llegar tarde', tags: ['FUN', 'SITUACIONAL'] },
@@ -67,12 +67,12 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     { id: '65', name: 'Cosa que huele mal', tags: ['FUN', 'SENSORIAL'] },
     { id: '66', name: 'Miedo/Fobia', tags: ['PSICOLOGIA'] },
     { id: '67', name: 'Pecado Capital', tags: ['CULTURA', 'HARD'] },
-    
+
     // SPORTS
     { id: '70', name: 'Deporte', tags: ['DEPORTE'] },
     { id: '71', name: 'Deportista', tags: ['DEPORTE', 'FAMOSO'] },
     { id: '72', name: 'Equipo de Fútbol', tags: ['DEPORTE'] },
-    
+
     // HOUSE & OBJECTS
     { id: '80', name: 'Parte de la Casa', tags: ['HOGAR'] },
     { id: '81', name: 'Electrodoméstico', tags: ['HOGAR', 'TECH'] },
@@ -80,13 +80,13 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     { id: '83', name: 'Objeto de Cocina', tags: ['HOGAR', 'COCINA'] },
     { id: '84', name: 'Herramienta', tags: ['HOGAR', 'OBJETO'] },
     { id: '85', name: 'Ropa/Accesorio', tags: ['MODA'] },
-    
+
     // NATURE & ANIMALS
     { id: '90', name: 'Raza de Perro', tags: ['NATURALEZA', 'ANIMALES'] },
     { id: '91', name: 'Insecto', tags: ['NATURALEZA', 'ANIMALES'] },
     { id: '92', name: 'Animal Marino', tags: ['NATURALEZA', 'ANIMALES'] },
     { id: '93', name: 'Flor', tags: ['NATURALEZA'] },
-    
+
     // SITUATIONAL
     { id: '100', name: 'Lo encuentras en la playa', tags: ['SITUACIONAL', 'VERANO'] },
     { id: '101', name: 'Se compra en farmacia', tags: ['SITUACIONAL', 'COMPRAS'] },
