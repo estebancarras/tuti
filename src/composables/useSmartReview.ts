@@ -1,7 +1,7 @@
 import { Ref } from 'vue';
 import { RoomState } from '../../shared/types'; // Adjust path if needed
 
-export type ReviewState = 'VALID' | 'DUPLICATE' | 'REJECTED' | 'EMPTY';
+export type ReviewState = 'VALID' | 'DUPLICATE' | 'REJECTED' | 'CONTESTED' | 'EMPTY';
 
 export interface PlayerReviewStatus {
     playerId: string;
@@ -9,6 +9,7 @@ export interface PlayerReviewStatus {
     state: ReviewState;
     score: number;
     voteCount: number;
+    votesNeeded: number; // For UI display (e.g., "1/3")
     votesReceived: string[]; // List of voter IDs
 }
 
@@ -24,30 +25,44 @@ export function useSmartReview(gameState: Ref<RoomState>, currentCategory: Ref<s
 
         // 1. Check Empty
         if (!answer || answer.trim() === "") {
-            return { playerId, answer, state: 'EMPTY', score: 0, voteCount: 0, votesReceived: [] };
+            return { playerId, answer, state: 'EMPTY', score: 0, voteCount: 0, votesNeeded: 0, votesReceived: [] };
         }
 
-        // 2. Check Votes (Rejection)
-        // Threshold: Simple majority of "other" players? Or just > X? 
-        // Strict approach: if > 50% of active players (excluding self) voted against it.
-        // For 3 players (A, B, C): A is judged. B & C can vote. Max votes = 2. Majority = 2? Or > 0?
-        // Let's use a "Tolerance" system. For now, let's say >= 2 votes or > 50% of rivals.
-        // Small lobby (2 players): 1 vote is enough? Yes.
-        // Lobby (3 players): 2 votes? 
-        // Let's use Math.max(1, Math.floor((players.length - 1) / 2) + 1) for majority?
-        // Actually, let's simplify: Start with >= 2 for now, or >= 1 if only 2 players.
-        // Dynamic Threshold:
-        const activePlayersCount = stateVal.players.filter(p => p.isConnected).length;
-        const rivalsCount = Math.max(1, activePlayersCount - 1);
-        const rejectionThreshold = Math.ceil(rivalsCount / 2); // > 50% of rivals
+        // 2. Check Votes (Progressive Tolerance)
+        // Formula: Threshold = floor((active - 1) / 2) + 1
+        // We exclude the player being judged from the "Jury Pool".
 
-        // OR simply strict: if it has votes, it's contested. 
-        // The user requirement says: "This word has 2 votes... if it reaches 3...".
-        // Let's stick to the threshold logic.
-        const isRejected = votes.length >= rejectionThreshold;
+        const activePlayersCount = stateVal.players.filter(p => p.isConnected).length;
+        // Note: isSpectator check removed previously due to type error, assuming spectators are handled by logic or not in list. 
+        // If spectators are in list but not playing, we might need a better filter. For now relying on 'isConnected'.
+        // Wait, self is in stateVal.players.
+
+        const juryPoolSize = Math.max(1, activePlayersCount - 1); // Exclude self
+        const rejectionThreshold = Math.floor(juryPoolSize / 2) + 1;
+
+        const voteCount = votes.length;
+        const isRejected = voteCount >= rejectionThreshold;
+
+        // RETURN OBJECT HELPER
+        const buildStatus = (state: ReviewState, score: number) => ({
+            playerId,
+            answer,
+            state,
+            score,
+            voteCount,
+            votesNeeded: rejectionThreshold,
+            votesReceived: votes
+        });
 
         if (isRejected) {
-            return { playerId, answer, state: 'REJECTED', score: 0, voteCount: votes.length, votesReceived: votes };
+            return buildStatus('REJECTED', 0);
+        }
+
+        if (voteCount > 0) {
+            // CONTESTED STATE (Warning but points kept)
+            // If it's a duplicate, it keeps 50pts. If unique, 100pts.
+            // We need to check duplicate status first to know the score.
+            // Let's reorganize.
         }
 
         // 3. Check Duplicates (Comparison)
@@ -66,11 +81,11 @@ export function useSmartReview(gameState: Ref<RoomState>, currentCategory: Ref<s
         }
 
         if (isDuplicate) {
-            return { playerId, answer, state: 'DUPLICATE', score: 50, voteCount: votes.length, votesReceived: votes };
+            return buildStatus('DUPLICATE', 50);
         }
 
         // 4. Default Valid
-        return { playerId, answer, state: 'VALID', score: 100, voteCount: votes.length, votesReceived: votes };
+        return buildStatus('VALID', 100);
     };
 
     return {

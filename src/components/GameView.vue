@@ -496,6 +496,7 @@ const handleInputFocus = (event: Event) => {
                                 :class="{
                                     'bg-green-500/10 border-l-4 border-l-green-500': getReviewItem(player.id).state === 'VALID',
                                     'bg-yellow-500/10 border-l-4 border-l-yellow-500': getReviewItem(player.id).state === 'DUPLICATE',
+                                    'bg-orange-500/10 border-l-4 border-l-orange-500 animate-pulse': getReviewItem(player.id).state === 'CONTESTED',
                                     'bg-red-500/10 border-l-4 border-l-red-500': getReviewItem(player.id).state === 'REJECTED',
                                     'opacity-50': getReviewItem(player.id).state === 'EMPTY'
                                 }"
@@ -524,6 +525,7 @@ const handleInputFocus = (event: Event) => {
                                          :class="{
                                              'bg-green-400 text-green-900': getReviewItem(player.id).state === 'VALID',
                                              'bg-yellow-400 text-yellow-900': getReviewItem(player.id).state === 'DUPLICATE',
+                                             'bg-orange-400 text-orange-900': getReviewItem(player.id).state === 'CONTESTED',
                                              'bg-red-500 text-white': getReviewItem(player.id).state === 'REJECTED'
                                          }"
                                     >
@@ -533,8 +535,11 @@ const handleInputFocus = (event: Event) => {
 
                                 <div class="flex justify-end items-center gap-3">
                                     <!-- VOTE COUNTER (Only show if votes exists) -->
-                                    <span v-if="getReviewItem(player.id).voteCount > 0" class="text-xs font-black text-red-400 animate-in fade-in zoom-in">
-                                        {{ getReviewItem(player.id).voteCount }} 👎
+                                    <span v-if="getReviewItem(player.id).voteCount > 0" class="text-xs font-black animate-in fade-in zoom-in mr-2"
+                                        :class="getReviewItem(player.id).state === 'REJECTED' ? 'text-red-500' : 'text-orange-400'"
+                                    >
+                                        {{ getReviewItem(player.id).state === 'REJECTED' ? '🚫' : '⚠️' }} 
+                                        {{ getReviewItem(player.id).voteCount }}/{{ getReviewItem(player.id).votesNeeded }}
                                     </span>
 
                                     <div v-if="player.id === myUserId" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center opacity-30 cursor-not-allowed">
