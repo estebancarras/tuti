@@ -332,73 +332,56 @@ export class GameEngine {
             this.state.timers.votingEndsAt = Date.now() + (this.state.config.votingDuration * 1000);
             this.state.stoppedBy = userId;
 
-            // --- 1vs1 OPTIMIZATION ---
-            // If strictly 2 active players, bypass voting to avoid toxicity
+            // --- 1vs1 GHOST VOTING ---
+            // If strictly 2 active players, we automate the "voting" judgment
+            // using the Validator Service, but keep the Review Phase for visual feedback.
             const activePlayers = this.state.players.filter(p => p.isConnected);
             if (activePlayers.length === 2) {
-                console.log("[1vs1] Bypassing Review Phase -> Auto Validation");
-                this.autoValidateAndScore(activePlayers);
-                return this.state;
+                console.log("[1vs1] Injecting Ghost Votes for Automated Judgment");
+                this.injectAutomatedVotes(activePlayers);
+                // Do NOT return. Fall through to normal REVIEW state.
             }
         }
         return this.state;
     }
 
-    private autoValidateAndScore(activePlayers: Player[]) {
-        this.state.status = 'RESULTS';
-        this.state.timers.roundEndsAt = null;
-        this.state.timers.votingEndsAt = null;
-        this.state.timers.resultsEndsAt = Date.now() + 10000;
-
-        // Initialize structures
-        this.state.answerStatuses = {};
-        this.state.roundScores = {};
-        this.state.players.forEach(p => {
-            this.state.answerStatuses[p.id] = {};
-            this.state.roundScores[p.id] = 0;
-        });
-
+    private injectAutomatedVotes(activePlayers: Player[]) {
         const playerA = activePlayers[0];
         const playerB = activePlayers[1];
 
+        // Ensure votes object exists
+        if (!this.state.votes) this.state.votes = {};
+
+        // Loop all categories
         for (const category of this.state.categories) {
+            // Validate A
             const ansA = this.state.answers[playerA.id]?.[category] || "";
-            const ansB = this.state.answers[playerB.id]?.[category] || "";
-
-            // Validate Individual Words
             const valA = validateWord(ansA, category);
-            const valB = validateWord(ansB, category);
-
-            // Compare for Duplicates (only if both valid)
-            const isDuplicate = valA.isValid && valB.isValid &&
-                ansA.trim().toLowerCase() === ansB.trim().toLowerCase(); // Simple check, or use normalized
-
-            // Score Player A
             if (!valA.isValid) {
-                this.state.answerStatuses[playerA.id][category] = 'INVALID';
-            } else if (isDuplicate) {
-                this.state.answerStatuses[playerA.id][category] = 'DUPLICATE';
-                this.state.roundScores[playerA.id] += 5;
-                playerA.score += 5;
-            } else {
-                this.state.answerStatuses[playerA.id][category] = 'VALID';
-                this.state.roundScores[playerA.id] += 10;
-                playerA.score += 10;
+                // Inject vote from B against A
+                if (!this.state.votes[playerA.id]) this.state.votes[playerA.id] = {};
+                if (!this.state.votes[playerA.id][category]) this.state.votes[playerA.id][category] = [];
+                // Check if already voted (unlikely in fresh round but safe)
+                if (!this.state.votes[playerA.id][category].includes(playerB.id)) {
+                    this.state.votes[playerA.id][category].push(playerB.id);
+                }
             }
 
-            // Score Player B
+            // Validate B
+            const ansB = this.state.answers[playerB.id]?.[category] || "";
+            const valB = validateWord(ansB, category);
             if (!valB.isValid) {
-                this.state.answerStatuses[playerB.id][category] = 'INVALID';
-            } else if (isDuplicate) {
-                this.state.answerStatuses[playerB.id][category] = 'DUPLICATE';
-                this.state.roundScores[playerB.id] += 5;
-                playerB.score += 5;
-            } else {
-                this.state.answerStatuses[playerB.id][category] = 'VALID';
-                this.state.roundScores[playerB.id] += 10;
-                playerB.score += 10;
+                // Inject vote from A against B
+                if (!this.state.votes[playerB.id]) this.state.votes[playerB.id] = {};
+                if (!this.state.votes[playerB.id][category]) this.state.votes[playerB.id][category] = [];
+                if (!this.state.votes[playerB.id][category].includes(playerA.id)) {
+                    this.state.votes[playerB.id][category].push(playerA.id);
+                }
             }
         }
+
+        // Note: Duplicates are handled by the 'calculateResults' logic during scoring, 
+        // which runs AFTER the review phase. We only need to inject rejection votes here.
     }
 
     public submitAnswers(connectionId: string, answers: Record<string, string>): RoomState {

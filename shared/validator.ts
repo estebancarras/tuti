@@ -47,9 +47,17 @@ export type Dictionary = Set<string>;
 
 import { countries } from './dictionaries/paises.js';
 // Import other dictionaries as needed
+import { animals } from './dictionaries/animales.js';
+import { colors } from './dictionaries/colores.js';
+import { fruits } from './dictionaries/frutas.js';
+import { names } from './dictionaries/nombres.js';
 
 const DICTIONARIES: Record<string, Dictionary> = {
     'País': countries,
+    'Animal': animals,
+    'Color': colors,
+    'Fruta/Verdura': fruits,
+    'Nombre': names,
     // Add mapping for other categories
 };
 
@@ -67,12 +75,10 @@ export function validateWord(word: string, category: string): { isValid: boolean
     // 3. Dictionary Check
     const dictionary = DICTIONARIES[category];
     if (!dictionary) {
-        // Fallback: If no dictionary, we can't authoritatively validate.
-        // For 1vs1 authoratitive mode, maybe we accept it if it meets length criteria?
-        // OR we reject it? 
-        // Plan says: "Fallback: If category has no dictionary, accept everything (or strict length check)."
-        // Let's accept if length > 1 (simple heuristic)
-        return { isValid: cleanWord.length > 1, isFuzzy: false };
+        // Fallback: In 1vs1 Authoritative Mode, if we don't know the category, we MUST reject it.
+        // Otherwise, players can score points with nonsense.
+        // This implicitly prompts us to support all categories in the game config for 1vs1 matches.
+        return { isValid: false, isFuzzy: false };
     }
 
     // 3.1 Exact Match

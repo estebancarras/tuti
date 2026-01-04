@@ -545,6 +545,10 @@ const handleInputFocus = (event: Event) => {
                                     <div v-if="player.id === myUserId" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center opacity-30 cursor-not-allowed">
                                         🔒
                                     </div>
+                                    <!-- 1VS1 READ ONLY MODE -->
+                                    <div v-else-if="gameState.players.filter(p => p.isConnected).length === 2" class="w-10 h-10 flex items-center justify-center" title="Validado por IA">
+                                        🤖
+                                    </div>
                                     <button 
                                         v-else 
                                         @click="toggleVote(player.id, currentCategory)"
