@@ -41,7 +41,7 @@ const BLACKLIST = new Set([
     "retrasado", "imbecil", "estupido", "idiota", "mogolico"
 ]);
 
-import { dictionaryManager } from './dictionaries/manager.js';
+import { DictionaryManager } from './dictionaries/manager.js';
 
 export function validateWord(word: string, category: string): { isValid: boolean, isFuzzy: boolean } {
     const cleanWord = word.trim().toLowerCase();
@@ -55,7 +55,7 @@ export function validateWord(word: string, category: string): { isValid: boolean
     // 3. Dictionary Check (O(1))
     // We strictly assume if dict exists, words must be in it.
     // However, checking existence of collection first is good to define fallback policy.
-    const collection = dictionaryManager.getCollection(category);
+    const collection = DictionaryManager.getCollection(category);
 
     if (!collection) {
         // Fallback: In 1vs1 Authoritative Mode, if we don't know the category, we MUST reject it.
@@ -63,7 +63,7 @@ export function validateWord(word: string, category: string): { isValid: boolean
     }
 
     // 3.1 Exact Match (via Manager which creates normalized sets)
-    if (dictionaryManager.hasExact(category, cleanWord)) {
+    if (DictionaryManager.hasExact(category, cleanWord)) {
         return { isValid: true, isFuzzy: false };
     }
 
@@ -75,8 +75,7 @@ export function validateWord(word: string, category: string): { isValid: boolean
             // Optimization: Length diff check first
             if (Math.abs(validWord.length - cleanWord.length) > 2) continue;
 
-            const dist = levenshteinDistance(cleanWord, validWord); // Note: cleanWord isn't fully normalized (accents), but manager content is. 
-            // Better: normalize cleanWord too for LEV comparison? 
+
             // Levenshtein on "Peru" vs "Perú" is 1. That's handled.
             // But manager stores "peru". Input "Perú" -> clean "perú".
             // cleanWord still has accents? yes, .toLowerCase() doesn't remove accents.
