@@ -68,10 +68,11 @@ watch(() => gameState.value.players, (newPlayers) => {
 </script>
 
 <template>
-  <div class="h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex flex-col items-center p-4">
+  <div class="h-[100dvh] w-screen overflow-hidden bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex flex-col items-center relative transition-all duration-500"
+       :class="currentView === 'GAME' ? 'p-0' : 'p-4'">
     
-    <!-- MAIN TITLE (Header) -->
-    <header class="flex-none flex flex-col items-center mb-4 z-10">
+    <!-- MAIN TITLE (Header) - Hidden in Game Mode -->
+    <header v-if="currentView !== 'GAME'" class="flex-none flex flex-col items-center mb-4 z-10 transition-all duration-500">
         <h1 class="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 drop-shadow-lg tracking-tight">
           Tutifruti Online
         </h1>
