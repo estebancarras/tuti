@@ -330,329 +330,343 @@ const handleInputFocus = (event: Event) => {
     }, 300);
 };
 
+// --- DYNAMIC DENSITY ENGINE (Project Immersive Cockpit) ---
+// Calculates grid and input sizes based on category count
+const gridConfig = computed(() => {
+    const count = gameState.value.categories.length;
+
+    // MODE FOCUS (1-3)
+    if (count <= 3) {
+        return {
+            container: "max-w-xl mx-auto pt-10",
+            grid: "grid-cols-1 gap-6",
+            inputHeight: "h-20 text-3xl placeholder:text-white/20",
+            label: "text-sm text-indigo-300 mb-2"
+        };
+    }
+    // MODE BOARD (4-8) - Most common
+    else if (count <= 8) {
+        return {
+            container: "max-w-5xl mx-auto",
+            // Mobile: 1 col, Desktop: 2 cols
+            grid: "grid-cols-1 md:grid-cols-2 gap-4",
+            inputHeight: "h-14 text-xl",
+            label: "text-xs text-indigo-300/80 mb-1"
+        };
+    }
+    // MODE DATA (9+) - High Density
+    else {
+        return {
+            container: "w-full max-w-7xl mx-auto",
+            // Mobile: 2 cols, Tablet: 3, Desktop: 4
+            grid: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3",
+            inputHeight: "h-11 text-base",
+            label: "text-[10px] uppercase tracking-wider opacity-60"
+        };
+    }
+});
+
 </script>
 
 <template>
-    <div class="h-[100dvh] w-full flex flex-col bg-slate-900 text-slate-100 overflow-hidden relative">
+    <div class="h-[100dvh] w-full bg-gradient-to-b from-indigo-950 via-slate-900 to-black overflow-hidden relative">
         
-        <!-- === CONNECTION STATUS (Floating, minimal) === -->
-         <div v-if="!gameState.players.find(p => p.id === myUserId)?.isConnected" class="absolute top-2 left-1/2 -translate-x-1/2 z-50 bg-red-500/90 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg animate-pulse">
-            ⚠️ Desconectado
+        <!-- === LAYER 0: BACKGROUND & WATERMARK (Z-0) === -->
+        <div class="fixed inset-0 z-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
+            <!-- Giant Letter Watermark -->
+            <div v-if="gameState.currentLetter" 
+                 class="text-[40vh] font-black text-white/5 leading-none transform rotate-12 blur-sm"
+            >
+                {{ gameState.currentLetter }}
+            </div>
         </div>
 
-        <!-- === A. HEADER (Fixed & Compact) === -->
-        <div class="flex-none bg-slate-900/80 backdrop-blur-md border-b border-white/5 p-3 flex justify-between items-center z-20 h-16 shadow-lg">
+        <!-- === LAYER 1: INTERFACE (Z-10) === -->
+        <div class="relative z-10 w-full h-full flex flex-col">
             
-            <!-- Left: Round -->
-            <div class="flex flex-col">
-                <span class="text-[10px] font-mono text-slate-400 uppercase tracking-widest leading-none mb-0.5">Ronda</span>
-                <span class="text-xl font-black text-white leading-none">
-                    {{ gameState.roundsPlayed + 1 }}<span class="text-sm text-slate-500 font-medium">/{{ gameState.config?.totalRounds || 5 }}</span>
-                </span>
+            <!-- Connection Status -->
+            <div v-if="!gameState.players.find(p => p.id === myUserId)?.isConnected" class="absolute top-2 left-1/2 -translate-x-1/2 z-50 bg-red-500/90 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg animate-pulse">
+                ⚠️ Desconectado
             </div>
 
-            <!-- Center: The Letter -->
-            <div class="relative group">
-                <div class="absolute inset-0 bg-indigo-500 rounded-lg blur opacity-40 group-hover:opacity-60 transition-opacity"></div>
-                <div class="relative bg-indigo-600 w-10 h-10 rounded-lg flex items-center justify-center shadow-lg border border-indigo-400/30">
-                    <span class="text-2xl font-black text-white drop-shadow-md">{{ gameState.currentLetter }}</span>
+            <!-- Header (Floating Glass) -->
+            <div class="flex-none h-16 flex justify-between items-center px-4 bg-black/20 backdrop-blur-md border-b border-white/5 shadow-sm">
+                <!-- Round -->
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-mono text-indigo-300 uppercase tracking-widest leading-none mb-0.5">Ronda</span>
+                    <span class="text-xl font-black text-white leading-none">
+                        {{ gameState.roundsPlayed + 1 }}<span class="text-sm text-white/30 font-medium">/{{ gameState.config?.totalRounds || 5 }}</span>
+                    </span>
                 </div>
-            </div>
 
-            <!-- Right: Timer -->
-            <div class="flex flex-col items-end w-[60px]">
-                 <span v-if="timeRemaining !== null" 
-                      class="font-mono text-2xl font-bold leading-none tabular-nums"
-                      :class="timerColor"
-                 >
-                    {{ timeRemaining }}
-                </span>
-                <span v-else class="text-xs font-bold text-slate-600">--</span>
-                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Segundos</span>
-            </div>
-        </div>
-
-        <!-- === B. BODY (Scrollable Area) === -->
-        <div class="flex-1 overflow-y-auto p-4 pb-32 scroll-smooth">
-            <div class="w-full max-w-2xl mx-auto">
-                
-                <!-- PLAYING STATE: Inputs Grid -->
-                <div v-if="gameState.status === 'PLAYING'" class="flex flex-col gap-4">
-                     <!-- RIVALS HUD -->
-                    <div v-if="rivalsActivity.length > 0" class="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                        <div 
-                            v-for="rival in rivalsActivity" 
-                            :key="rival.id"
-                            class="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full border transition-all duration-300 min-w-max"
-                            :class="[
-                                rival.isFinished ? 'border-green-500/50 bg-green-500/10' : 
-                                rival.isActive ? 'border-purple-500/50' : 'border-white/10 opacity-60'
-                            ]"
-                        >
-                            <div class="relative">
-                                <span class="text-xl" :class="{ 'animate-pulse': rival.isActive }">{{ rival.avatar || '👤' }}</span>
-                                <div v-if="rival.isFinished" class="absolute -bottom-1 -right-1 bg-green-500 rounded-full w-3 h-3 border border-black"></div>
-                            </div>
-                            <div class="flex flex-col leading-none">
-                                <span class="text-[10px] uppercase font-bold text-white/50 max-w-[60px] truncate">{{ rival.name }}</span>
-                                <span class="font-mono text-sm font-bold" :class="rival.isFinished ? 'text-green-400' : 'text-white'">
-                                    {{ rival.filledCount }}<span class="text-white/40 text-[10px]">/{{ rival.totalCategories }}</span>
-                                </span>
-                            </div>
-                        </div>
+                <!-- Small Current Letter Display (Functional) -->
+                <div class="flex flex-col items-center">
+                    <span class="text-xs text-indigo-300 font-bold uppercase tracking-widest leading-none mb-1">Letra</span>
+                    <div class="w-8 h-8 rounded bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-white font-black text-lg shadow-[0_0_15px_rgba(99,102,241,0.3)]">
+                        {{ gameState.currentLetter }}
                     </div>
+                </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <div 
-                        v-for="category in gameState.categories" 
-                        :key="category"
-                        class="group bg-slate-800 border border-slate-700 rounded-lg p-2 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all duration-200 relative"
-                        :class="{'border-indigo-500/50 bg-slate-800/80': answers[category]?.trim().length > 0}"
+                <!-- Timer -->
+                <div class="flex flex-col items-end w-[60px]">
+                    <span v-if="timeRemaining !== null" 
+                        class="font-mono text-2xl font-bold leading-none tabular-nums"
+                        :class="timerColor"
                     >
-                         <label class="block text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5 truncate">{{ category }}</label>
-                         <input 
-                            :value="answers[category]"
-                            @input="handleInput(category, $event)"
-                            @focus="handleInputFocus"
-                            @keydown.enter.prevent
-                            type="text"
-                            autocomplete="off"
-                            class="w-full bg-transparent text-lg font-medium outline-none text-white placeholder-slate-600 font-sans"
-                            :placeholder="gameState.currentLetter + '...'"
-                        >
-                        <!-- Validation Icon (Client side logic check) -->
-                         <div v-if="answers[category]?.trim().length > 0" class="absolute top-2 right-2 text-indigo-400 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                        {{ timeRemaining }}
+                    </span>
+                    <span v-else class="text-xs font-bold text-white/40">--</span>
+                    <span class="text-[9px] uppercase font-bold text-white/30 tracking-wider">Segundos</span>
+                </div>
+            </div>
+
+            <!-- Main Body (Scrollable) -->
+            <div class="flex-1 overflow-y-auto px-4 pt-6 pb-32 scroll-smooth">
+                
+                <!-- PLAYING STATE -->
+                <div v-if="gameState.status === 'PLAYING'" class="flex flex-col gap-6 w-full" :class="gridConfig.container">
+                    
+                    <!-- Rivals HUD (Floating Horizontal) -->
+                    <div v-if="rivalsActivity.length > 0" class="w-full flex justify-center mb-2">
+                         <div class="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide max-w-full px-2">
+                            <div 
+                                v-for="rival in rivalsActivity" 
+                                :key="rival.id"
+                                class="flex items-center gap-2 bg-black/30 backdrop-blur px-3 py-1.5 rounded-full border transition-all duration-300 min-w-max"
+                                :class="[
+                                    rival.isFinished ? 'border-green-500/50 bg-green-500/10' : 
+                                    rival.isActive ? 'border-purple-500/50' : 'border-white/5 opacity-60'
+                                ]"
+                            >
+                                <div class="relative">
+                                    <span class="text-lg" :class="{ 'animate-pulse': rival.isActive }">{{ rival.avatar || '👤' }}</span>
+                                    <div v-if="rival.isFinished" class="absolute -bottom-1 -right-1 bg-green-500 rounded-full w-2.5 h-2.5 border border-black shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                                </div>
+                                <div class="flex flex-col leading-none">
+                                    <span class="text-[9px] uppercase font-bold text-white/50 max-w-[60px] truncate">{{ rival.name }}</span>
+                                    <span class="font-mono text-xs font-bold" :class="rival.isFinished ? 'text-green-400' : 'text-white/80'">
+                                        {{ rival.filledCount }}<span class="text-white/20">/{{ rival.totalCategories }}</span>
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                </div>
-
-                <!-- REVIEW / RESULTS STATE: Read-Only Grid -->
-                <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <!-- 
-                        Note: Existing Review logic was Carousel based. 
-                        The prompt asks to "Reuse Grid" for Results. 
-                        But for Review Phase, the existing Carousel is actually quite good for detailed voting.
-                        However, the prompt says "En la fase de RESULTS o VOTING: Reutiliza el mismo Grid denso."
-                        Let's adapt the REVIEW phase to show MINE vs OTHERS or just Summary?
-                        Actually, detailed voting usually requires focus per category.
-                        Let's stick to the prompt: "Reutiliza el mismo Grid denso. Reemplaza el <input> por un <div> de solo lectura."
-                        Wait, for VOTING we need to see OTHER players' answers.
-                        The grid above shows MY answers.
-                        If I show a Grid in Voting, I can see MY status, but how do I vote others?
-                        The "Compact Cockpit" might imply a summary view for me, and maybe a modal for voting?
-                        OR, sticking to the "Interactive Carousel" for Voting is better UX than a static grid if we need to vote.
-                        Let's keep the Carousel for 'REVIEW' (Active Voting) but styled to match the new aesthetic,
-                        AND use the Grid for 'RESULTS' or 'REVIEW' overview?
-                        Actually, the Prompt "3. C. Layout de Categorias... 5. Adaptación del Modo 1 vs 1... En RESULTS o VOTING... Reutiliza el Grid".
-                        In 1vs1, voting is automated, so a Grid showing the results is perfect.
-                        In Multiplayer, we still need manual voting.
-                        Let's implement the Grid for 'RESULTS' and 'REVIEW' (Overview), but maybe keep the Carousel for the actual voting action if needed?
-                        Let's try to follow the prompt strictly:
-                        "Reutiliza el mismo Grid denso... Reemplaza input por div"
-                        This implies showing MY answers with their status.
-                        BUT where do I vote for others?
-                        Maybe the voting UI happens in the FOOTER or a Modal?
-                        "C. FOOTER ... Voting/Result Actions".
-                        Okay, let's keep the Carousel for Voting inside the body if it's manual voting,
-                        OR if it's 1v1 (Automated), just show the Grid with statuses.
-                        Let's preserve the Carousel for Manual Voting (Review) to ensure functionality,
-                        but style it to fit the new theme.
-                        For RESULTS, use the Grid.
-                    -->
-
-                    <!-- REVIEW CAROUSEL (Manual Voting / 1v1 Watch) -->
-                    <div v-if="gameState.status === 'REVIEW'" class="flex flex-col gap-4 relative">
-                        
-                         <!-- STOP ALERT OVERLAY -->
-                        <div v-if="showStopAlert && stopperPlayer" class="absolute inset-0 z-50 flex items-center justify-center bg-red-600/90 backdrop-blur-md rounded-2xl animate-in fade-in zoom-in duration-300 pointer-events-none sticky top-10 h-64">
-                            <div class="text-center p-6 animate-bounce">
-                                <div class="text-8xl mb-4 drop-shadow-xl">{{ stopperPlayer?.avatar || '🛑' }}</div>
-                                <h2 class="text-4xl font-black text-white uppercase tracking-tighter drop-shadow-md">
-                                    ¡BASTA!
-                                </h2>
-                                <p class="text-white/90 text-xl font-bold mt-2 bg-black/20 px-4 py-1 rounded-full inline-block">
-                                    por {{ stopperPlayer?.name }}
-                                </p>
+                    <!-- Dynamic Input Grid -->
+                    <div class="grid w-full" :class="gridConfig.grid">
+                         <div 
+                            v-for="category in gameState.categories" 
+                            :key="category"
+                            class="group relative flex flex-col"
+                         >
+                            <label class="font-bold tracking-wide uppercase truncate transition-colors duration-300"
+                                   :class="[gridConfig.label, answers[category]?.trim().length > 0 ? 'text-indigo-200' : '']"
+                            >
+                                {{ category }}
+                            </label>
+                            
+                            <div class="relative w-full">
+                                <input 
+                                    :value="answers[category]"
+                                    @input="handleInput(category, $event)"
+                                    @focus="handleInputFocus"
+                                    @keydown.enter.prevent
+                                    type="text"
+                                    autocomplete="off"
+                                    class="w-full bg-white/5 border border-white/5 rounded-xl px-4 font-medium text-white outline-none transition-all duration-300 backdrop-blur-sm focus:bg-white/10 focus:border-indigo-500/50 focus:shadow-[0_0_30px_rgba(99,102,241,0.15)] placeholder-white/10 font-sans"
+                                    :class="[gridConfig.inputHeight]"
+                                    :placeholder="gameState.currentLetter + '...'"
+                                >
+                                <!-- Validation Dot -->
+                                <div v-if="answers[category]?.trim().length > 0" 
+                                     class="absolute top-1/2 -translate-y-1/2 right-4 w-2 h-2 rounded-full bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.6)] animate-in fade-in zoom-in duration-300 pointer-events-none"
+                                ></div>
                             </div>
+                         </div>
+                    </div>
+
+                </div>
+
+                <!-- REVIEW / RESULTS STATE -->
+                <div v-else class="w-full max-w-5xl mx-auto flex flex-col gap-6">
+                    
+                    <!-- Review Carousel (Center Stage) -->
+                     <div v-if="gameState.status === 'REVIEW'" class="relative flex flex-col">
+                        
+                         <!-- STOP ALERT (Overlay Style) -->
+                        <div v-if="showStopAlert && stopperPlayer" class="absolute inset-0 z-50 flex items-center justify-center pointer-events-none h-64 sticky top-10">
+                             <div class="relative bg-red-600/90 backdrop-blur-xl p-8 rounded-3xl shadow-[0_0_60px_rgba(220,38,38,0.5)] text-center animate-in zoom-in duration-300 border border-white/20">
+                                <div class="text-8xl mb-2 filter drop-shadow-md animate-bounce">{{ stopperPlayer?.avatar || '🛑' }}</div>
+                                <h2 class="text-5xl font-black text-white uppercase tracking-tighter drop-shadow-lg italic transform -skew-x-6">¡BASTA!</h2>
+                                <p class="text-white/80 font-bold mt-2 uppercase tracking-widest text-xs">Detenido por {{ stopperPlayer?.name }}</p>
+                             </div>
                         </div>
 
-                        <!-- We reuse the logic from before but restyled -->
-                         <div class="bg-slate-800/50 rounded-xl p-4 border border-white/5 flex flex-col items-center text-center">
-                            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Votando Categoría</h3>
-                            <h2 class="text-2xl font-black text-indigo-400 mb-4">{{ currentCategory }}</h2>
-                            
-                            <!-- Navigation -->
-                            <div class="flex items-center gap-4 mb-6">
-                                <button @click="prevCategory" :disabled="activeCategoryIndex === 0" class="p-2 bg-slate-700 rounded-full disabled:opacity-30 hover:bg-slate-600 transition-colors">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <span class="font-mono text-sm text-slate-500">{{ activeCategoryIndex + 1 }}/{{ gameState.categories.length }}</span>
-                                <button @click="nextCategory" :disabled="activeCategoryIndex === gameState.categories.length - 1" class="p-2 bg-slate-700 rounded-full disabled:opacity-30 hover:bg-slate-600 transition-colors">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-                                </button>
-                            </div>
+                        <!-- Card Content -->
+                        <div class="bg-indigo-900/20 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-sm shadow-2xl">
+                             <div class="p-6 text-center border-b border-white/5 bg-black/20">
+                                 <h3 class="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-2">Revisión</h3>
+                                 <h2 class="text-3xl font-black text-white drop-shadow-md">{{ currentCategory }}</h2>
+                             </div>
 
-                            <!-- Players List for Voting -->
-                            <div class="w-full space-y-2">
-                                <div v-for="player in gameState.players" :key="player.id" 
-                                    class="flex items-center justify-between bg-slate-900 border border-slate-700 p-3 rounded-lg"
-                                    :class="{
-                                        'border-green-500/50 bg-green-500/5': getReviewItem(player.id).state === 'VALID',
-                                        'border-red-500/50 bg-red-500/5': getReviewItem(player.id).state === 'REJECTED',
-                                        'border-yellow-500/50 bg-yellow-500/5': getReviewItem(player.id).state === 'DUPLICATE'
-                                    }"
-                                >
-                                    <div class="flex items-center gap-3 overflow-hidden">
-                                        <div class="text-xl">{{ player.avatar || '👤' }}</div>
-                                        <div class="flex flex-col items-start overflow-hidden">
-                                            <span class="text-xs font-bold text-slate-400 truncate max-w-[80px]">{{ player.name }}</span>
-                                            <span class="font-bold text-white truncate text-sm">{{ getReviewItem(player.id).answer || '-' }}</span>
+                             <!-- Nav -->
+                             <div class="flex items-center justify-between px-4 py-2 bg-white/5">
+                                <button @click="prevCategory" :disabled="activeCategoryIndex === 0" class="p-2 text-white/50 hover:text-white disabled:opacity-20 transition-colors">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                                </button>
+                                <span class="font-mono text-xs text-white/30">{{ activeCategoryIndex + 1 }} / {{ gameState.categories.length }}</span>
+                                <button @click="nextCategory" :disabled="activeCategoryIndex === gameState.categories.length - 1" class="p-2 text-white/50 hover:text-white disabled:opacity-20 transition-colors">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                </button>
+                             </div>
+
+                             <!-- List -->
+                             <div class="divide-y divide-white/5">
+                                <div v-for="player in gameState.players" :key="player.id" class="flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
+                                     <div class="flex items-center gap-4 overflow-hidden">
+                                         <div class="text-2xl filter drop-shadow">{{ player.avatar || '👤' }}</div>
+                                         <div class="flex flex-col overflow-hidden">
+                                             <span class="text-[10px] font-bold text-white/40 uppercase tracking-wider">{{ player.name }}</span>
+                                             <span class="text-lg font-bold text-white truncate" :class="{'line-through text-white/30 decoration-red-500/50': getReviewItem(player.id).state === 'REJECTED'}">
+                                                {{ getReviewItem(player.id).answer || '-' }}
+                                             </span>
+                                         </div>
+                                     </div>
+
+                                     <!-- Vote Action -->
+                                     <div class="flex items-center gap-3">
+                                         <!-- Status Badge -->
+                                        <div class="px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider"
+                                             :class="{
+                                                 'bg-green-500/20 text-green-300 border border-green-500/30': getReviewItem(player.id).state === 'VALID',
+                                                 'bg-red-500/20 text-red-300 border border-red-500/30': getReviewItem(player.id).state === 'REJECTED',
+                                                 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30': getReviewItem(player.id).state === 'DUPLICATE'
+                                             }"
+                                        >
+                                            {{ getReviewItem(player.id).state === 'VALID' ? `+${getReviewItem(player.id).score}` : '0' }}
                                         </div>
-                                    </div>
 
-                                    <!-- Action/Status -->
-                                    <div class="flex items-center gap-2">
-                                        <!-- Score Badge -->
-                                        <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
-                                            {{ getReviewItem(player.id).score }}
-                                        </span>
-                                        
-                                        <!-- Vote Button -->
+                                        <!-- Interactive Vote -->
                                         <button 
                                             v-if="player.id !== myUserId && gameState.players.length > 2"
                                             @click="toggleVote(player.id, currentCategory)"
-                                            class="w-8 h-8 rounded-full flex items-center justify-center border transition-all"
+                                            class="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 border"
                                             :class="gameState.votes[player.id]?.[currentCategory]?.includes(myUserId) 
-                                                ? 'bg-red-500 border-red-500 text-white' 
-                                                : 'bg-transparent border-slate-600 text-slate-500 hover:border-red-400 hover:text-red-400'"
+                                                ? 'bg-red-500 border-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.4)] scale-110' 
+                                                : 'bg-white/5 border-white/10 text-white/20 hover:text-red-400 hover:border-red-500/50'"
                                         >
                                             👎
                                         </button>
-                                        <div v-else-if="gameState.players.length === 2" class="text-lg">
-                                            <!-- AI / 1v1 Indicator -->
-                                            <span v-if="getReviewItem(player.id).state === 'REJECTED'">❌</span>
-                                            <span v-else-if="getReviewItem(player.id).state === 'VALID'">✅</span>
-                                             <span v-else>🤖</span>
-                                        </div>
-                                    </div>
+                                     </div>
                                 </div>
-                            </div>
-                         </div>
-                    </div>
+                             </div>
+                        </div>
+                     </div>
 
-                    <!-- RESULTS: Dense Grid of MY answers with visual status -->
-                    <div v-if="gameState.status === 'RESULTS'" class="flex flex-col gap-6">
-                        <!-- Scoreboard Summary -->
-                        <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                            <h2 class="text-lg font-black text-white mb-3 text-center">Ranking de Ronda</h2>
-                            <div class="space-y-2">
-                                <div v-for="player in [...gameState.players].sort((a,b) => b.score - a.score)" :key="player.id" class="flex items-center justify-between p-2 rounded bg-slate-900/50">
-                                    <div class="flex items-center gap-2">
-                                        <span>{{ player.avatar }}</span>
-                                        <span class="font-bold text-sm" :class="player.id === myUserId ? 'text-indigo-400' : 'text-slate-300'">{{ player.name }}</span>
-                                    </div>
-                                    <span class="font-mono font-bold text-yellow-400">{{ player.score }} pts</span>
+                     <!-- Results Grid -->
+                     <div v-if="gameState.status === 'RESULTS'" class="flex flex-col gap-6">
+                        <!-- Ranking -->
+                        <div class="grid grid-cols-1 gap-2">
+                             <div v-for="(player, idx) in [...gameState.players].sort((a,b) => b.score - a.score)" :key="player.id" 
+                                  class="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/5 backdrop-blur-sm relative overflow-hidden"
+                             >
+                                <div class="relative z-10 flex items-center gap-3">
+                                    <span class="font-black text-white/20 text-xl w-6">{{ idx + 1 }}</span>
+                                    <span class="text-2xl">{{ player.avatar }}</span>
+                                    <span class="font-bold text-white">{{ player.name }}</span>
                                 </div>
-                            </div>
+                                <span class="relative z-10 font-black text-indigo-300 text-xl">{{ player.score }} pts</span>
+                                <div v-if="idx === 0" class="absolute inset-0 bg-yellow-500/10 z-0"></div>
+                             </div>
                         </div>
 
-                         <!-- My Answers Grid -->
-                         <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest px-1">Mis Respuestas</h3>
-                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            <div 
-                                v-for="category in gameState.categories" 
-                                :key="category"
-                                class="bg-slate-800 border-l-4 rounded-r-lg p-2 flex flex-col"
-                                :class="{
-                                    'border-l-green-500': answers[category] && !gameState.votes[myUserId]?.[category]?.length, 
-                                    'border-l-red-500': gameState.votes[myUserId]?.[category]?.length,
-                                    'border-l-slate-600': !answers[category]
-                                }"
-                            >
-                                <span class="text-[10px] uppercase font-bold text-slate-400 mb-0.5">{{ category }}</span>
-                                <span class="text-lg font-medium text-white truncate">{{ answers[category] || '-' }}</span>
-                            </div>
-                         </div>
-                    </div>
-
+                        <!-- My Summary Grid (Reusing Logic but Readonly) -->
+                        <div>
+                             <h3 class="text-xs font-bold text-white/40 mb-3 uppercase tracking-widest pl-1">Resumen Ronda</h3>
+                             <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <div v-for="category in gameState.categories" :key="category" 
+                                     class="p-3 rounded-xl border bg-black/20"
+                                     :class="{
+                                         'border-green-500/30': answers[category] && !gameState.votes[myUserId]?.[category]?.length,
+                                         'border-red-500/30': gameState.votes[myUserId]?.[category]?.length,
+                                         'border-white/5': !answers[category]
+                                     }"
+                                >
+                                    <span class="block text-[9px] font-bold text-white/40 uppercase mb-1">{{ category }}</span>
+                                    <span class="block text-white font-medium truncate">{{ answers[category] || '-' }}</span>
+                                </div>
+                             </div>
+                        </div>
+                     </div>
                 </div>
-
             </div>
-        </div>
 
-        <!-- === C. FOOTER (Sticky Actions) === -->
-        <div class="flex-none p-4 w-full bg-slate-900/95 backdrop-blur border-t border-slate-800 z-30">
-            <div class="w-full max-w-md mx-auto">
-                
-                <!-- PLAYING: STOP Button -->
-                <button 
+            <!-- Footer (Levitating) -->
+            <div class="absolute bottom-6 left-0 right-0 flex justify-center pointer-events-none z-50 px-4">
+                 
+                 <!-- ACTION: STOP -->
+                 <button 
                     v-if="gameState.status === 'PLAYING'"
                     @click="handleStop"
-                    class="w-full bg-red-600 text-white font-black text-xl py-3 rounded-xl border-b-4 border-red-800 active:border-b-0 active:translate-y-1 transition-all shadow-lg hover:bg-red-500 flex items-center justify-center gap-2 group"
+                    class="pointer-events-auto w-full max-w-md bg-gradient-to-r from-rose-600 to-pink-600 text-white font-black text-xl py-4 rounded-2xl shadow-[0_0_40px_rgba(225,29,72,0.4)] border border-white/20 flex items-center justify-center gap-3 transform transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                     :class="{'opacity-50 grayscale cursor-not-allowed': !canStopRound && !validationCooldown, 'animate-shake': validationCooldown}"
-                >
-                    <span class="text-2xl group-hover:rotate-12 transition-transform">✋</span>
-                    STOP
-                </button>
+                 >
+                    <span class="text-2xl drop-shadow-md">✋</span>
+                    <span class="tracking-widest drop-shadow-md">BASTA</span>
+                 </button>
 
-                <!-- REVIEW: Confirm Button -->
-                <button 
+                 <!-- ACTION: CONFIRM VOTES -->
+                 <button
                     v-if="gameState.status === 'REVIEW'"
                     @click="handleConfirmVotes"
-                    class="w-full bg-green-600 text-white font-black text-xl py-3 rounded-xl border-b-4 border-green-800 active:border-b-0 active:translate-y-1 transition-all shadow-lg hover:bg-green-500 disabled:opacity-50 disabled:border-b-4 disabled:active:translate-y-0"
+                    class="pointer-events-auto w-full max-w-md bg-emerald-600 text-white font-black text-lg py-4 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)] border-b-4 border-emerald-800 active:border-b-0 active:translate-y-1 transition-all"
                     :disabled="hasConfirmed"
-                >
-                    {{ hasConfirmed ? 'Esperando...' : 'Confirmar Votos ✅' }}
-                </button>
+                 >
+                    {{ hasConfirmed ? 'Votos Enviados ✅' : 'Confirmar Votos' }}
+                 </button>
 
-                 <!-- RESULTS: Next Round Button -->
-                <button 
-                    v-if="gameState.status === 'RESULTS' && amIHost"
-                    @click="startGame"
-                    class="w-full bg-indigo-600 text-white font-black text-xl py-3 rounded-xl border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1 transition-all shadow-lg hover:bg-indigo-500"
-                >
-                    Siguiente Ronda ➡️
-                </button>
-                <div v-else-if="gameState.status === 'RESULTS'" class="text-center text-slate-500 text-sm font-bold animate-pulse">
-                    Esperando al Host...
-                </div>
-
+                 <!-- ACTION: NEXT ROUND -->
+                 <div v-if="gameState.status === 'RESULTS'" class="pointer-events-auto w-full max-w-md">
+                    <button 
+                        v-if="amIHost"
+                        @click="startGame"
+                        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xl py-4 rounded-2xl shadow-lg transition-all"
+                    >
+                        Siguiente Ronda ➡️
+                    </button>
+                    <div v-else class="text-center">
+                        <span class="inline-block px-4 py-2 rounded-full bg-black/40 backdrop-blur border border-white/10 text-white/60 text-xs font-bold animate-pulse">
+                            Esperando al Host...
+                        </span>
+                    </div>
+                 </div>
             </div>
-        </div>
-        
-        <!-- === EXIT MODAL === -->
-         <div v-if="showExitModal" class="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div class="bg-slate-800 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl border border-white/10">
-                <h3 class="text-2xl font-black text-white mb-2">¿Abandonar?</h3>
-                <p class="text-slate-300 mb-6 font-medium text-sm">El progreso se perderá.</p>
-                <div class="flex gap-3">
-                    <button @click="showExitModal = false" class="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold transition-all">
-                        Seguir
-                    </button>
-                    <button @click="handleExit" class="flex-1 px-4 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-all">
-                        Salir
-                    </button>
+
+             <!-- Exit Modal -->
+            <div v-if="showExitModal" class="absolute inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md">
+                <div class="bg-slate-900 border border-white/10 rounded-3xl p-6 max-w-sm w-full mx-6 text-center shadow-2xl">
+                    <h3 class="text-2xl font-black text-white mb-2">¿Salir?</h3>
+                    <div class="flex gap-3 justify-center mt-6">
+                        <button @click="showExitModal = false" class="px-6 py-3 rounded-xl font-bold bg-white/10 text-white hover:bg-white/20">Cancelar</button>
+                        <button @click="handleExit" class="px-6 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-500 shadow-lg">Salir</button>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- === TOASTS === -->
-        <div class="absolute top-16 right-4 flex flex-col items-end gap-2 pointer-events-none z-50">
-            <TransitionGroup name="toast">
-                <div 
-                    v-for="toast in sessionToasts" 
-                    :key="toast.id" 
-                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg shadow-lg border text-xs font-bold pointer-events-auto select-none backdrop-blur-md"
-                    :class="toast.type === 'stop-warning' ? 'bg-yellow-500/20 text-yellow-200 border-yellow-500/30' : 'bg-slate-800/90 text-white border-white/10'"
-                >
-                    <span>{{ toast.text }}</span>
-                </div>
-            </TransitionGroup>
-        </div>
+            <!-- Toast Container -->
+            <div class="absolute top-20 right-4 flex flex-col items-end gap-2 pointer-events-none z-[60]">
+                 <TransitionGroup name="toast">
+                    <div v-for="toast in sessionToasts" :key="toast.id" 
+                         class="pointer-events-auto px-4 py-2 rounded-xl backdrop-blur-xl border shadow-xl flex items-center gap-3"
+                         :class="toast.type === 'stop-warning' ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-200' : 'bg-slate-800/80 border-white/10 text-white'"
+                    >
+                        <span class="text-lg">{{ toast.type === 'join' ? '👋' : (toast.type === 'leave' ? '🚪' : '⚠️') }}</span>
+                        <span class="font-bold text-xs">{{ toast.text }}</span>
+                    </div>
+                </TransitionGroup>
+            </div>
 
+        </div>
     </div>
 </template>
 
