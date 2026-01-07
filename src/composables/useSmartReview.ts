@@ -18,10 +18,11 @@ export function useSmartReview(gameState: Ref<RoomState>, currentCategory: Ref<s
     // Helper to normalize strings for comparison
     const normalize = (str: string) => str.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-    const getPlayerStatus = (playerId: string): PlayerReviewStatus => {
+    const getPlayerStatus = (playerId: string, categoryOverride?: string): PlayerReviewStatus => {
+        const category = categoryOverride || currentCategory.value;
         const stateVal = gameState.value;
-        const answer = stateVal.answers[playerId]?.[currentCategory.value] || "";
-        const votes = stateVal.votes[playerId]?.[currentCategory.value] || [];
+        const answer = stateVal.answers[playerId]?.[category] || "";
+        const votes = stateVal.votes[playerId]?.[category] || [];
 
         // 1. Check Empty
         if (!answer || answer.trim() === "") {
