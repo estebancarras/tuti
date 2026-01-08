@@ -551,30 +551,7 @@ export class GameEngine {
         this.state.timers.resultsEndsAt = Date.now() + 10000; // 10 seconds
     }
 
-    // Forced Transitions (called by server Watchdog)
-    public forceEndRound(): RoomState {
-        if (this.state.status !== 'PLAYING') return this.state;
 
-        // Transition to REVIEW without any player triggering it
-        this.state.status = 'REVIEW';
-        // Players who didn't submit get empty answers (already default behavior)
-
-        // Cancel Round Timer
-        this.state.timers.roundEndsAt = null;
-        // Set Voting Timer
-        this.state.timers.votingEndsAt = Date.now() + (this.state.config.votingDuration * 1000);
-
-        return this.state;
-    }
-
-    public forceEndVoting(): RoomState {
-        if (this.state.status !== 'REVIEW') return this.state;
-
-        // Force calculate results even if not everyone confirmed
-        this.calculateResults();
-
-        return this.state;
-    }
 
 
 
@@ -701,5 +678,41 @@ export class GameEngine {
         }
 
         return sanitized;
+    }
+
+    // --- TIMEOUT / WATCHDOG LOGIC ---
+    public checkTimeouts(): RoomState | null {
+        const now = Date.now();
+        let changed = false;
+
+        if (this.state.status === 'PLAYING' && this.state.timers.roundEndsAt && now >= this.state.timers.roundEndsAt) {
+            console.log('[GameEngine] Timeout: Round Ended');
+            this.forceEndRound();
+            changed = true;
+        } else if (this.state.status === 'REVIEW' && this.state.timers.votingEndsAt && now >= this.state.timers.votingEndsAt) {
+            console.log('[GameEngine] Timeout: Voting Ended');
+            this.forceEndVoting();
+            changed = true;
+        } else if (this.state.status === 'RESULTS' && this.state.timers.resultsEndsAt && now >= this.state.timers.resultsEndsAt) {
+            console.log('[GameEngine] Timeout: Results Ended, Next Round');
+            this.forceStartNextRound();
+            changed = true;
+        }
+
+        return changed ? this.state : null;
+    }
+
+    private forceEndRound() {
+        this.state.status = 'REVIEW';
+        this.state.timers.roundEndsAt = null;
+        this.state.timers.votingEndsAt = Date.now() + (this.state.config.votingDuration * 1000);
+        this.state.stoppedBy = null; // Fix undefined vs null
+
+        // Auto-check for 1v1 or consensus if needed
+        this.checkConsensus();
+    }
+
+    private forceEndVoting() {
+        this.calculateResults();
     }
 }

@@ -1,170 +1,176 @@
 import type * as Party from "partykit/server";
 import { GameEngine } from "../shared/game-engine.js";
 import { RoomState } from "../shared/types.js";
+import { broadcastState, sendError } from "./utils/broadcaster";
 
 const STORAGE_KEY = "room_state_v1";
 
-export default class Room implements Party.Server {
-    private engine: GameEngine;
+export default class Server implements Party.Server {
+    options: Party.ServerOptions = {
+        hibernate: true, // Keep room alive even if empty for a while? Or false to kill it.
+    };
 
-    constructor(readonly room: Party.Room) {
+    room: Party.Room;
+    engine: GameEngine;
+
+    constructor(room: Party.Room) {
+        this.room = room;
         this.engine = new GameEngine(room.id);
     }
 
     async onStart() {
-        try {
-            const data = await this.room.storage.get<RoomState>(STORAGE_KEY);
-            if (data) {
-                this.engine.hydrate(data);
-                console.log("[SERVER] Room state hydrated successfully");
-            }
-        } catch (e) {
-            console.error("[SERVER] Failed to hydrate state:", e);
+        // Hydrate from storage if exists
+        const stored = await this.room.storage.get<RoomState>(STORAGE_KEY);
+        if (stored) {
+            console.log(`[Hydrate] Loaded state for room ${this.room.id}`);
+            // We need a way to hydrate usage of game engine.
+            // GameEngine constructor creates default state.
+            // We should overwrite it.
+            this.engine['state'] = stored; // Dirty hack or add method? Add method better usually.
+            // For now, dirty hack JS style or typed access:
+            // Let's assume we can set it.
         }
     }
 
-    private async saveState() {
-        try {
-            const state = this.engine.getState();
-            await this.room.storage.put(STORAGE_KEY, state);
-            console.log("[PERSISTENCE] Saving state to disk...");
-        } catch (e) {
-            console.error("[PERSISTENCE] Failed to save state:", e);
-        }
-    }
+    async onConnect(connection: Party.Connection, ctx: Party.ConnectionContext) {
+        const url = new URL(ctx.request.url);
+        const name = url.searchParams.get("name") || "Guest";
+        const userId = connection.id;
+        const avatar = url.searchParams.get("avatar") || "👤";
 
-    async onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
-        console.log(
-            `Connected:
-              id: ${conn.id}
-              room: ${this.room.id}
-              url: ${new URL(ctx.request.url).pathname}`
-        );
+        console.log(`[Connect] ${name} (${userId}) joined ${this.room.id}`);
 
-        // Join logic is handled by client sending JOIN message, but we can send initial state
-        conn.send(JSON.stringify({
-            type: "UPDATE_STATE",
-            payload: this.engine.getState()
-        }));
+        const state = this.engine.joinPlayer(userId, name, avatar, connection.id);
+
+        // Save state
+        await this.room.storage.put(STORAGE_KEY, state);
+
+        // Broadcast entire state
+        broadcastState(this.room, state);
     }
 
     async onMessage(message: string, sender: Party.Connection) {
         try {
-            console.log(`connection ${sender.id} sent message: ${message}`);
-            const parsed = JSON.parse(message);
-            let shouldPersist = false;
+            const data = JSON.parse(message);
+            const { type, payload } = data;
 
-            try {
-                if (parsed.type === 'JOIN') {
-                    // Avatar comes from payload or fallback if missing (though client should send it)
-                    const avatar = parsed.payload.avatar || '👤';
-                    this.engine.joinPlayer(parsed.payload.userId, parsed.payload.name, avatar, sender.id);
-                    shouldPersist = true;
-                } else if (parsed.type === 'START_GAME') {
-                    this.engine.startGame(sender.id);
-                    shouldPersist = true;
-                } else if (parsed.type === 'STOP_ROUND') {
-                    this.engine.stopRound(sender.id, parsed.payload.answers);
-                    shouldPersist = true;
-                } else if (parsed.type === 'SUBMIT_ANSWERS') {
-                    this.engine.submitAnswers(sender.id, parsed.payload.answers);
-                    shouldPersist = true;
-                } else if (parsed.type === 'UPDATE_ANSWERS') {
-                    // Passive update (debounce), same logic as submit but distinct message type for clarity
-                    this.engine.submitAnswers(sender.id, parsed.payload.answers);
-                    shouldPersist = true;
-                } else if (parsed.type === 'TOGGLE_VOTE') {
-                    this.engine.toggleVote(sender.id, parsed.payload.targetUserId, parsed.payload.category);
-                    shouldPersist = true;
-                } else if (parsed.type === 'CONFIRM_VOTES') {
-                    this.engine.confirmVotes(sender.id);
-                    shouldPersist = true;
-                } else if (parsed.type === 'UPDATE_CONFIG') {
-                    this.engine.updateConfig(sender.id, parsed.payload);
-                    shouldPersist = true;
-                }
-                else if (parsed.type === 'RESTART_GAME') {
-                    this.engine.restartGame(sender.id);
-                    shouldPersist = true;
-                }
-                else if (parsed.type === 'KICK_PLAYER') {
-                    this.engine.kickPlayer(sender.id, parsed.payload.targetUserId);
-                    shouldPersist = true;
-                }
-                else if (parsed.type === 'EXIT_GAME') {
-                    // Do nothing specific on server, connection close handles disconnect
-                }
-            } catch (err) {
-                console.error("[SERVER ERROR] processing message:", err);
-                sender.send(JSON.stringify({
-                    type: 'ERROR',
-                    payload: { message: (err as Error).message || "Unknown error processing request" }
-                }));
-                return;
+            // Simple dispatcher for now. 
+            // Phase 2: Refactor to Action Handlers
+
+            let state = this.engine['state']; // Current ref
+            let hasChanges = false;
+
+            console.log(`[Message] ${type} from ${sender.id}`);
+
+            switch (type) {
+                case "START_GAME":
+                    state = this.engine.startGame(sender.id);
+                    hasChanges = true;
+                    break;
+
+                case "SUBMIT_ANSWERS":
+                    // payload: { answers: Record<string,string> }
+                    state = this.engine.submitAnswers(sender.id, payload.answers);
+                    hasChanges = true;
+                    break;
+
+                case "TOGGLE_VOTE":
+                    // payload: { targetUserId, category }
+                    state = this.engine.toggleVote(sender.id, payload.targetUserId, payload.category);
+                    hasChanges = true;
+                    break;
+
+                case "CONFIRM_VOTES":
+                    state = this.engine.confirmVotes(sender.id);
+                    hasChanges = true;
+                    break;
+
+                case "STOP_ROUND":
+                    // Validar si realmente puede parar
+                    state = this.engine.stopRound(sender.id, payload.answers);
+                    hasChanges = true;
+                    break;
+
+                case "UPDATE_CONFIG":
+                    // payload: Partial<GameConfig>
+                    state = this.engine.updateConfig(sender.id, payload);
+                    hasChanges = true;
+                    break;
+
+                case "KICK_PLAYER":
+                    state = this.engine.kickPlayer(sender.id, payload.targetUserId);
+                    hasChanges = true;
+                    // Also close connection?
+                    // const conn = this.room.getConnection(payload.targetUserId);
+                    // if (conn) conn.close();
+                    break;
+
+                case "PONG":
+                    // Heartbeat, ignore
+                    return;
+
+                default:
+                    console.warn(`Unknown message type: ${type}`);
             }
 
-            const state = this.engine.getState();
+            if (hasChanges) {
+                await this.room.storage.put(STORAGE_KEY, state);
+                await this.scheduleAlarms(state); // Check if we need to set alarms (e.g. round timer)
 
-            if (shouldPersist) {
-                await this.saveState();
+                // Broadcast
+                broadcastState(this.room, state);
             }
 
-            // Schedule alarms based on timers
-            await this.scheduleAlarms(state);
-
-            // Broadcast new state
-            this.room.broadcast(JSON.stringify({
-                type: "UPDATE_STATE",
-                payload: state
-            }));
-
-        } catch (e) {
-            console.error("Error handling message", e);
+        } catch (err) {
+            console.error("[SERVER ERROR] processing message:", err);
+            sendError(sender, (err as Error).message || "Unknown error processing request");
+            return;
         }
     }
 
-    private async scheduleAlarms(state: any) {
-        // Clear any existing alarm first
-        await this.room.storage.deleteAlarm();
+    // Alarm is used for Game Loop Timers (Round End, Voting End)
+    async scheduleAlarms(state: RoomState) {
+        // Clear existing? PartyKit alarms are singular per ID or generic?
+        // this.room.storage.alarm is singular.
 
-        // Schedule new alarm based on current state
+        // If Play -> Schedule Round End
+        // If Review -> Schedule Voting End
+        // If RESULTS -> maybe auto restart? directly?
+
+        // Logic: Find the NEXT deadline in the state and set alarm for it.
+        const now = Date.now();
+        let nextTarget: number | null = null;
+
         if (state.status === 'PLAYING' && state.timers.roundEndsAt) {
-            await this.room.storage.setAlarm(state.timers.roundEndsAt);
+            nextTarget = state.timers.roundEndsAt;
         } else if (state.status === 'REVIEW' && state.timers.votingEndsAt) {
-            await this.room.storage.setAlarm(state.timers.votingEndsAt);
+            nextTarget = state.timers.votingEndsAt;
         } else if (state.status === 'RESULTS' && state.timers.resultsEndsAt) {
-            await this.room.storage.setAlarm(state.timers.resultsEndsAt);
+            nextTarget = state.timers.resultsEndsAt;
+        }
+
+        if (nextTarget && nextTarget > now) {
+            console.log(`⏰ Watchdog scheduled for room ${this.room.id} in ${nextTarget - now}ms`);
+            await this.room.storage.setAlarm(nextTarget);
+        } else {
+            // Unset?
+            // await this.room.storage.setAlarm(null); // Not supported yet or check docs
         }
     }
 
     async onAlarm() {
+        console.log(`⏰ Watchdog triggered for room ${this.room.id}, status: ${this.engine['state'].status}`);
+
+        // The alarm fired, meaning a timer expired.
+        // Let the engine handle "Check Timeouts"
         try {
-            const state = this.engine.getState();
-            const now = Date.now();
-            let changed = false;
-
-            if (state.status === 'PLAYING' && state.timers.roundEndsAt && now >= state.timers.roundEndsAt) {
-                this.engine.forceEndRound();
-                changed = true;
-            } else if (state.status === 'REVIEW' && state.timers.votingEndsAt && now >= state.timers.votingEndsAt) {
-                this.engine.forceEndVoting();
-                changed = true;
-            } else if (state.status === 'RESULTS' && state.timers.resultsEndsAt && now >= state.timers.resultsEndsAt) {
-                this.engine.forceStartNextRound();
-                changed = true;
-            }
-
-            if (changed) {
-                await this.saveState();
-                const newState = this.engine.getState();
-                // Schedule next alarm if needed
+            const newState = this.engine.checkTimeouts();
+            if (newState) {
+                await this.room.storage.put(STORAGE_KEY, newState);
                 await this.scheduleAlarms(newState);
 
                 // Broadcast updated state
-                this.room.broadcast(JSON.stringify({
-                    type: "UPDATE_STATE",
-                    payload: newState
-                }));
+                broadcastState(this.room, newState);
             }
         } catch (e) {
             console.error("[SERVER] Error in onAlarm:", e);
@@ -173,9 +179,6 @@ export default class Room implements Party.Server {
 
     onClose(connection: Party.Connection) {
         const state = this.engine.playerDisconnected(connection.id);
-        this.room.broadcast(JSON.stringify({
-            type: "UPDATE_STATE",
-            payload: state
-        }));
+        broadcastState(this.room, state);
     }
 }
