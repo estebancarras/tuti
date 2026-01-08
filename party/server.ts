@@ -2,20 +2,30 @@ import type * as Party from "partykit/server";
 import { GameEngine } from "../shared/game-engine.js";
 import { RoomState } from "../shared/types.js";
 import { broadcastState, sendError } from "./utils/broadcaster";
+import { ConnectionHandler } from "./handlers/connection";
+import { PlayerHandler } from "./handlers/player";
 
 const STORAGE_KEY = "room_state_v1";
 
 export default class Server implements Party.Server {
     options: Party.ServerOptions = {
-        hibernate: true, // Keep room alive even if empty for a while? Or false to kill it.
+        hibernate: true,
     };
 
     room: Party.Room;
     engine: GameEngine;
 
+    // Handlers
+    connectionHandler: ConnectionHandler;
+    playerHandler: PlayerHandler;
+
     constructor(room: Party.Room) {
         this.room = room;
         this.engine = new GameEngine(room.id);
+
+        // Instantiate Handlers
+        this.connectionHandler = new ConnectionHandler(room, this.engine);
+        this.playerHandler = new PlayerHandler(room, this.engine);
     }
 
     async onStart() {
@@ -23,30 +33,12 @@ export default class Server implements Party.Server {
         const stored = await this.room.storage.get<RoomState>(STORAGE_KEY);
         if (stored) {
             console.log(`[Hydrate] Loaded state for room ${this.room.id}`);
-            // We need a way to hydrate usage of game engine.
-            // GameEngine constructor creates default state.
-            // We should overwrite it.
-            this.engine['state'] = stored; // Dirty hack or add method? Add method better usually.
-            // For now, dirty hack JS style or typed access:
-            // Let's assume we can set it.
+            this.engine['state'] = stored;
         }
     }
 
     async onConnect(connection: Party.Connection, ctx: Party.ConnectionContext) {
-        const url = new URL(ctx.request.url);
-        const name = url.searchParams.get("name") || "Guest";
-        const userId = connection.id;
-        const avatar = url.searchParams.get("avatar") || "👤";
-
-        console.log(`[Connect] ${name} (${userId}) joined ${this.room.id}`);
-
-        const state = this.engine.joinPlayer(userId, name, avatar, connection.id);
-
-        // Save state
-        await this.room.storage.put(STORAGE_KEY, state);
-
-        // Broadcast entire state
-        broadcastState(this.room, state);
+        await this.connectionHandler.handleConnect(connection, ctx);
     }
 
     async onMessage(message: string, sender: Party.Connection) {
@@ -63,6 +55,7 @@ export default class Server implements Party.Server {
             console.log(`[Message] ${type} from ${sender.id}`);
 
             switch (type) {
+                // --- Game Logic Handled Here (For now) ---
                 case "START_GAME":
                     state = this.engine.startGame(sender.id);
                     hasChanges = true;
@@ -91,19 +84,14 @@ export default class Server implements Party.Server {
                     hasChanges = true;
                     break;
 
+                // --- Admin Logic Delegated to PlayerHandler ---
                 case "UPDATE_CONFIG":
-                    // payload: Partial<GameConfig>
-                    state = this.engine.updateConfig(sender.id, payload);
-                    hasChanges = true;
-                    break;
+                    await this.playerHandler.handleUpdateSettings(payload, sender);
+                    return; // Handled by handler
 
                 case "KICK_PLAYER":
-                    state = this.engine.kickPlayer(sender.id, payload.targetUserId);
-                    hasChanges = true;
-                    // Also close connection?
-                    // const conn = this.room.getConnection(payload.targetUserId);
-                    // if (conn) conn.close();
-                    break;
+                    await this.playerHandler.handleKick(payload, sender);
+                    return; // Handled by handler
 
                 case "PONG":
                     // Heartbeat, ignore
@@ -130,13 +118,6 @@ export default class Server implements Party.Server {
 
     // Alarm is used for Game Loop Timers (Round End, Voting End)
     async scheduleAlarms(state: RoomState) {
-        // Clear existing? PartyKit alarms are singular per ID or generic?
-        // this.room.storage.alarm is singular.
-
-        // If Play -> Schedule Round End
-        // If Review -> Schedule Voting End
-        // If RESULTS -> maybe auto restart? directly?
-
         // Logic: Find the NEXT deadline in the state and set alarm for it.
         const now = Date.now();
         let nextTarget: number | null = null;
@@ -154,7 +135,6 @@ export default class Server implements Party.Server {
             await this.room.storage.setAlarm(nextTarget);
         } else {
             // Unset?
-            // await this.room.storage.setAlarm(null); // Not supported yet or check docs
         }
     }
 
@@ -178,7 +158,6 @@ export default class Server implements Party.Server {
     }
 
     onClose(connection: Party.Connection) {
-        const state = this.engine.playerDisconnected(connection.id);
-        broadcastState(this.room, state);
+        this.connectionHandler.handleClose(connection);
     }
 }
