@@ -108,7 +108,7 @@ describe('GameEngine Core', () => {
             engine.submitAnswers(cE, { 'Fruta': 'Xylofono' });
 
             // Force End Round -> Review
-            engine.forceEndRound();
+            (engine as any).forceEndRound();
 
             // Perform Voting: Reject Player E's "Xylofono"
             // Everyone votes against E
