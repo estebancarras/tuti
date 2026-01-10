@@ -7,15 +7,17 @@
     "dev:mock": "concurrently \"npx -y tsx party/mock-server.ts\" \"vite\"",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
+    "type-check": "vue-tsc --noEmit",
+    "test:run": "vitest run",
     "party:dev": "partykit dev",
     "party:deploy": "partykit deploy",
-    "deploy": "npm run build && npx partykit deploy",
+    "deploy": "npm run type-check && npm run test:run && npm run build && npx partykit deploy",
     "test": "vitest"
   },
   "dependencies": {
     "htmx.org": "^1.9.10",
-    "partykit": "^0.0.105",
-    "partysocket": "^1.1.6",
+    "partykit": "^0.0.115",
+    "partysocket": "^1.1.10",
     "vue": "^3.4.15",
     "zod": "^3.22.4"
   },
@@ -31,7 +33,7 @@
     "typescript": "^5.3.3",
     "vite": "^5.0.12",
     "vitest": "^4.0.16",
-    "vue-tsc": "^1.8.27",
+    "vue-tsc": "^3.2.2",
     "ws": "^8.18.3"
   }
 }

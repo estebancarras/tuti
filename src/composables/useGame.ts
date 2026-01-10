@@ -94,8 +94,15 @@ export function useGame() {
     });
 
     const joinGame = async (name: string, roomId: string, avatar: string) => {
-        // 1. Connect to the specific room
-        setRoomId(roomId);
+        const userId = myUserId.value; // Get persistent ID
+
+        // 1. Connect to the specific room with Identity Params
+        // This ensures the server uses OUR persistent ID, not a random connection ID
+        setRoomId(roomId, {
+            name,
+            userId,
+            avatar
+        });
 
         // Update URL for deep linking
         const url = new URL(window.location.href);
@@ -123,8 +130,6 @@ export function useGame() {
 
         // 3. Send JOIN message
         if (!socket.value) return;
-
-        const userId = myUserId.value; // Use the reactive myUserId
 
         const message = {
             type: 'JOIN',

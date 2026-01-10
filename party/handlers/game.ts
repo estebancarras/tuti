@@ -38,4 +38,25 @@ export class GameHandler extends BaseHandler {
         await this.room.storage.put(STORAGE_KEY, state);
         broadcastState(this.room, state);
     }
+    async handleAdminReset(sender: Party.Connection) {
+        try {
+            // Security Check: Verify if sender is Host
+            const state = this.engine.getState();
+            const host = state.players.find(p => p.isHost);
+
+            if (!host || host.id !== sender.id) {
+                // Also allow if no host exists? (Safety net)
+                // But usually there is a host.
+                // If checking adminId (server secret), that's different. 
+                // Requirement: "sender.id equals adminId (Solo el host puede resetear)" -> Implies Host player.
+                throw new Error("Only the host can reset the game.");
+            }
+
+            console.log(`[ADMIN] Game reset by ${sender.id}`);
+            const newState = this.engine.reset();
+            await this.persistAndBroadcast(newState);
+        } catch (err) {
+            sendError(sender, (err as Error).message);
+        }
+    }
 }

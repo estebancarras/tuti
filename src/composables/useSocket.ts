@@ -1,7 +1,9 @@
 import { ref } from 'vue';
 import PartySocket from "partysocket";
 
-const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || (import.meta.env.DEV ? "localhost:1999" : "tutifruti-phoenix.partykit.dev");
+const PARTYKIT_HOST = import.meta.env.DEV
+    ? "localhost:1999"
+    : (typeof window !== 'undefined' ? window.location.host : "tutifruti-phoenix.partykit.dev");
 
 // Global state (Singleton pattern) to ensure App.vue and useGame.ts share the connection
 const socket = ref<PartySocket | null>(null);
@@ -9,7 +11,7 @@ const isConnected = ref(false);
 const lastMessage = ref<string>('');
 
 export function useSocket() {
-    const setRoomId = (roomId: string | null) => {
+    const setRoomId = (roomId: string | null, params: Record<string, string> = {}) => {
         // 1. Close existing connection if any
         if (socket.value) {
             console.log('🔌 Switching rooms... Closing old connection.');
@@ -20,13 +22,21 @@ export function useSocket() {
 
         if (!roomId) return;
 
+        // Build Query String
+        // Build Query String
+        // const searchParams = new URLSearchParams(params);
+        // const queryString = searchParams.toString();
+        // const querySuffix = queryString ? `?${queryString}` : ''; // Unused, PartySocket handles this via 'query' option
+
         // 2. Create new connection
-        console.log(`🔌 Connecting to room: ${roomId} on host: ${PARTYKIT_HOST}`);
+        console.log(`🔌 Connecting to room: ${roomId} on host: ${PARTYKIT_HOST} with params:`, params);
 
         if (import.meta.env.DEV) {
             // Mock Server Connection (Native WebSocket)
-            // We pass roomId in query param for mock server to identify it (simulating PartyKit routing)
-            const ws = new WebSocket(`ws://${PARTYKIT_HOST}?roomId=${roomId}`);
+            // Ensure we append params correctly. Mock server expects roomId in query param too.
+            const mockParams = new URLSearchParams(params);
+            mockParams.set("roomId", roomId);
+            const ws = new WebSocket(`ws://${PARTYKIT_HOST}?${mockParams.toString()}`);
 
             ws.addEventListener('open', () => {
                 isConnected.value = true;
@@ -49,6 +59,7 @@ export function useSocket() {
             socket.value = new PartySocket({
                 host: PARTYKIT_HOST,
                 room: roomId,
+                query: params // PartySocket handles query params natively
             });
 
             socket.value.addEventListener('open', () => {

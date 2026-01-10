@@ -10,7 +10,8 @@ export class ConnectionHandler extends BaseHandler {
         try {
             const url = new URL(ctx.request.url);
             const name = url.searchParams.get("name") || "Guest";
-            const userId = connection.id;
+            // CRITICAL FIX: Use client-provided ID if available (persistence), else fallback to connection ID
+            const userId = url.searchParams.get("userId") || connection.id;
             const avatar = url.searchParams.get("avatar") || "👤";
 
             console.log(`[Connect] ${name} (${userId}) joined ${this.room.id}`);

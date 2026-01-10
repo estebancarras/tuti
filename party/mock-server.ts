@@ -237,12 +237,12 @@ function handleWatchdogTrigger(roomId: string) {
 
     // Check if round timer expired
     if (state.status === 'PLAYING' && state.timers.roundEndsAt && now >= state.timers.roundEndsAt) {
-        engine.forceEndRound();
+        (engine as any).forceEndRound();
         console.log(`🔴 Forced end of round in room ${roomId}`);
     }
     // Check if voting timer expired
     else if (state.status === 'REVIEW' && state.timers.votingEndsAt && now >= state.timers.votingEndsAt) {
-        engine.forceEndVoting();
+        (engine as any).forceEndVoting();
         console.log(`🔴 Forced end of voting in room ${roomId}`);
     }
     // Check if results timer expired

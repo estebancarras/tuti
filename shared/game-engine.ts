@@ -262,6 +262,28 @@ export class GameEngine {
         }
     }
 
+    public reset(): RoomState {
+        console.log('[GameEngine] HARD RESET triggered.');
+        this.state.status = 'LOBBY';
+        this.state.roundsPlayed = 0;
+        this.state.currentLetter = null;
+        this.state.answers = {};
+        this.state.answerStatuses = {};
+        this.state.votes = {};
+        this.state.whoFinishedVoting = [];
+        this.state.roundScores = {};
+        // Keep players and config? Usually yes.
+        // If we want "hard reset", maybe we kick everyone? No, "destrabar partidas".
+        // So keep players.
+        // Clean scores? Yes.
+        this.state.players.forEach(p => {
+            p.score = 0;
+            // keep isHost? Yes.
+        });
+
+        return this.state;
+    }
+
     // We do NOT remove the player from the list to support reconnection (F5).
     // They remain in the state.
 

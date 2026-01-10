@@ -1,5 +1,6 @@
 {
     "name": "tutifruti-phoenix",
     "main": "./party/main.ts",
+    "serve": "dist",
     "compatibilityDate": "2025-12-01"
 }

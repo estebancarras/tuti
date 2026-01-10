@@ -85,6 +85,10 @@ export default class Server implements Party.Server {
                     await this.playerHandler.handleKick(payload, sender);
                     break;
 
+                case "ADMIN_RESET":
+                    await this.gameHandler.handleAdminReset(sender);
+                    break;
+
                 case "PONG":
                     return;
 
